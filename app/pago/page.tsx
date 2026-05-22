@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
+import { submitPaymentToSupabase } from "@/lib/services/paymentService";
 
 export default function PagoPage() {
   const { user, isReady } = useAuth();
@@ -31,7 +32,7 @@ export default function PagoPage() {
     setMessage(`Comprobante cargado: ${file.name}`);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
@@ -46,14 +47,19 @@ export default function PagoPage() {
       return;
     }
 
-    submitPaymentProof(user.username, {
-      fileName: receipt.name,
-      fileType: receipt.type,
-      fileSize: receipt.size,
-      uploadedAt: new Date().toISOString(),
-      status: "pending_review",
-    });
-    setMessage("Comprobante enviado. Tu pago quedó pendiente de revisión.");
+    try {
+      const supabasePaymentProof = await submitPaymentToSupabase(user.userId, receipt);
+      submitPaymentProof(user.username, supabasePaymentProof ?? {
+        fileName: receipt.name,
+        fileType: receipt.type,
+        fileSize: receipt.size,
+        uploadedAt: new Date().toISOString(),
+        status: "pending_review",
+      });
+      setMessage("Comprobante enviado. Tu pago quedó pendiente de revisión.");
+    } catch (paymentError) {
+      setError(paymentError instanceof Error ? paymentError.message : "No se pudo cargar el comprobante.");
+    }
   };
 
   if (isReady && !user) {

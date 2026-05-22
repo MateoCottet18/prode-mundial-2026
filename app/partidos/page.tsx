@@ -60,7 +60,7 @@ export default function PartidosPage() {
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 text-center shadow-2xl shadow-black/20">
           <h1 className="text-3xl font-black text-white">Iniciá sesión para cargar predicciones</h1>
           <p className="mt-3 text-slate-400">
-            Usá el participante de prueba: usuario mateo, contraseña mateo123.
+            Accedé con tu cuenta para cargar tus pronósticos del Mundial.
           </p>
           <Link
             href="/login"
@@ -74,7 +74,7 @@ export default function PartidosPage() {
   }
 
   const canPredict = user?.role === "participante";
-  const username = user?.username ?? "";
+  const username = user?.userId ?? user?.username ?? "";
 
   if (user?.role === "participante" && user.paymentStatus !== "approved") {
     return (

@@ -12,10 +12,12 @@ export type PaymentProof = {
 };
 
 export type AppUser = {
+  id?: string;
   username: string;
   password: string;
   role: UserRole;
   displayName: string;
+  email?: string;
   paymentStatus: PaymentStatus;
   paymentProof?: PaymentProof;
   paidAt?: string;
@@ -41,47 +43,9 @@ export type ResultsByMatch = Record<string, ScoreInput>;
 
 export const emptyScore: ScoreInput = { home: "", away: "" };
 
-export const fixedUsers: AppUser[] = [
-  {
-    username: "admin",
-    password: "admin123",
-    role: "admin",
-    displayName: "Admin",
-    paymentStatus: "approved",
-  },
-];
-
-export const seedParticipantUsers: AppUser[] = [
-  {
-    username: "mateo",
-    password: "mateo123",
-    role: "participante",
-    displayName: "Mateo",
-    paymentStatus: "approved",
-  },
-];
-
-export function authenticate(username: string, password: string, registeredUsers: AppUser[] = []) {
-  const user = getAllUsers(registeredUsers).find(
-    (candidate) => candidate.username === username && candidate.password === password,
-  );
-
-  if (!user) {
-    return null;
-  }
-
-  return {
-    userId: user.username,
-    username: user.username,
-    name: user.displayName,
-    role: user.role,
-    paymentStatus: normalizePaymentStatus(user.paymentStatus),
-  } satisfies SessionUser;
-}
-
-export function getAllUsers(registeredUsers: AppUser[] = []) {
-  return [...fixedUsers, ...seedParticipantUsers, ...registeredUsers];
-}
+// Seed users / `authenticate()` / `getAllUsers()` se eliminaron a propósito:
+// la única fuente de verdad para usuarios es ahora `public.profiles`
+// (cargada vía `lib/services/profileService.ts > fetchProfiles`).
 
 export function parseScore(score?: ScoreInput) {
   if (!score) {
@@ -167,12 +131,10 @@ export function getUserPoints(
 }
 
 export function getParticipantUsers(registeredUsers: AppUser[] = []) {
-  return [...seedParticipantUsers, ...registeredUsers].filter(
-    (user) => user.role === "participante",
-  );
+  return registeredUsers.filter((user) => user.role === "participante");
 }
 
-function normalizePaymentStatus(status: PaymentStatus | "pendiente" | "confirmado") {
+export function normalizePaymentStatus(status: PaymentStatus | "pendiente" | "confirmado") {
   if (status === "confirmado") {
     return "approved";
   }

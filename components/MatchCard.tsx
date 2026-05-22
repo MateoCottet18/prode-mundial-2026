@@ -1,4 +1,5 @@
 import type { Match } from "@/data/matches";
+import { CountryWithFlag } from "@/components/CountryWithFlag";
 import { ScoreField } from "@/components/ScoreField";
 import {
   calculatePoints,
@@ -173,7 +174,9 @@ export function MatchCard({
 function TeamName({ name, alignRight = false }: { name: string; alignRight?: boolean }) {
   return (
     <div className={alignRight ? "text-right" : undefined}>
-      <p className="text-lg font-black text-white">{name}</p>
+      <p className="text-lg font-black text-white">
+        <CountryWithFlag name={name} size={22} alignRight={alignRight} />
+      </p>
       <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Equipo</p>
     </div>
   );

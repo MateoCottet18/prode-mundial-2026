@@ -16,6 +16,7 @@ const participantLinks = [
   { href: "/partidos", label: "Partidos" },
   { href: "/resultados", label: "Resultados" },
   { href: "/tabla", label: "Tabla" },
+  { href: "/perfil", label: "Mi perfil" },
   { href: "/reglas", label: "Reglas" },
 ];
 
@@ -24,6 +25,7 @@ const adminLinks = [
   { href: "/partidos", label: "Partidos" },
   { href: "/resultados", label: "Resultados" },
   { href: "/tabla", label: "Tabla" },
+  { href: "/perfil", label: "Mi perfil" },
   { href: "/admin", label: "Admin" },
   { href: "/reglas", label: "Reglas" },
 ];

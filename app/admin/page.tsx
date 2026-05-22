@@ -1,20 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminResultCard } from "@/components/AdminResultCard";
 import { matches, type Matchday, type Stage } from "@/data/matches";
 import { useAuth } from "@/hooks/useAuth";
 import { useProdeStore } from "@/hooks/useProdeStore";
 import { useUsers } from "@/hooks/useUsers";
 import {
-  calculatePoints,
   emptyScore,
-  getParticipantUsers,
   parseScore,
   type ScoreInput,
 } from "@/lib/prode";
-import { clearLocalProdeData } from "@/lib/storage";
 import { getAllGeneratedMatches } from "@/lib/standings";
 
 type AdminFilter =
@@ -37,33 +34,16 @@ const adminFilters: AdminFilter[] = [
 export default function AdminPage() {
   const { user, isReady: isAuthReady } = useAuth();
   const {
-    predictions,
-    savedPredictions,
     results,
     saveResult,
     deleteResult,
     recalculatePoints,
   } = useProdeStore();
   const { registeredUsers, updatePaymentStatus } = useUsers();
-  const participants = getParticipantUsers(registeredUsers);
   const allMatches = useMemo(() => getAllGeneratedMatches(results), [results]);
   const [activeFilter, setActiveFilter] = useState<AdminFilter>(adminFilters[0]);
   const [resultDrafts, setResultDrafts] = useState<Record<string, ScoreInput>>({});
   const [editingResults, setEditingResults] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setResultDrafts((currentDrafts) => {
-      const nextDrafts = { ...currentDrafts };
-
-      allMatches.forEach((match) => {
-        if (!nextDrafts[match.id]) {
-          nextDrafts[match.id] = results[match.id] ?? emptyScore;
-        }
-      });
-
-      return nextDrafts;
-    });
-  }, [allMatches, results]);
 
   const filteredMatches = useMemo(() => {
     if (activeFilter.type === "todos") {
@@ -92,13 +72,6 @@ export default function AdminPage() {
   }
 
   const loadedResults = allMatches.filter((match) => parseScore(results[match.id])).length;
-  const savedPredictionsCount = allMatches.reduce(
-    (total, match) =>
-      total +
-      participants.filter((participant) => savedPredictions[participant.username]?.[match.id])
-        .length,
-    0,
-  );
 
   const updateResultDraft = (matchId: string, side: keyof ScoreInput, value: string) => {
     setResultDrafts((currentDrafts) => ({
@@ -110,12 +83,14 @@ export default function AdminPage() {
     }));
   };
 
-  const handleSaveResult = (matchId: string) => {
-    const saved = saveResult(matchId, resultDrafts[matchId] ?? emptyScore);
+  const handleSaveResult = async (matchId: string) => {
+    const saved = await saveResult(
+      matchId,
+      resultDrafts[matchId] ?? results[matchId] ?? emptyScore,
+    );
 
     if (saved) {
       setEditingResults((current) => ({ ...current, [matchId]: false }));
-      recalculatePoints();
     }
   };
 
@@ -127,17 +102,10 @@ export default function AdminPage() {
     setEditingResults((current) => ({ ...current, [matchId]: true }));
   };
 
-  const handleDeleteResult = (matchId: string) => {
-    deleteResult(matchId);
+  const handleDeleteResult = async (matchId: string) => {
+    await deleteResult(matchId);
     setResultDrafts((currentDrafts) => ({ ...currentDrafts, [matchId]: emptyScore }));
     setEditingResults((current) => ({ ...current, [matchId]: true }));
-    recalculatePoints();
-  };
-
-  const handleClearLocalData = () => {
-    clearLocalProdeData();
-    setResultDrafts({});
-    setEditingResults({});
   };
 
   return (
@@ -158,17 +126,10 @@ export default function AdminPage() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            onClick={recalculatePoints}
+            onClick={() => void recalculatePoints()}
             className="rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
           >
             Recalcular puntos
-          </button>
-          <button
-            type="button"
-            onClick={handleClearLocalData}
-            className="rounded-full border border-red-300/30 bg-red-300/10 px-6 py-3 font-bold text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15"
-          >
-            Limpiar datos locales
           </button>
         </div>
       </section>
@@ -177,7 +138,7 @@ export default function AdminPage() {
         {[
           [allMatches.length, "partidos"],
           [loadedResults, "resultados cargados"],
-          [savedPredictionsCount, "predicciones guardadas"],
+          [registeredUsers.length, "usuarios registrados"],
         ].map(([value, label]) => (
           <div key={label} className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-lg shadow-black/10">
             <p className="text-4xl font-black text-white">{value}</p>
@@ -298,10 +259,10 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      updatePaymentStatus(registeredUser.username, "approved", {
-                        paidAt: new Date().toISOString(),
-                        rejectedAt: undefined,
-                      })
+                      void updatePaymentStatus(
+                        registeredUser.id ?? registeredUser.username,
+                        "approved",
+                      )
                     }
                     className="rounded-full bg-emerald-300 px-5 py-2 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
                   >
@@ -310,9 +271,10 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      updatePaymentStatus(registeredUser.username, "rejected", {
-                        rejectedAt: new Date().toISOString(),
-                      })
+                      void updatePaymentStatus(
+                        registeredUser.id ?? registeredUser.username,
+                        "rejected",
+                      )
                     }
                     className="rounded-full border border-red-300/30 bg-red-300/10 px-5 py-2 text-sm font-bold text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15"
                   >
@@ -349,7 +311,7 @@ export default function AdminPage() {
               <AdminResultCard
                 key={match.id}
                 match={match}
-                result={isEditing ? resultDrafts[match.id] : results[match.id]}
+                result={isEditing ? resultDrafts[match.id] ?? results[match.id] : results[match.id]}
                 canEditResult={isEditing}
                 hasSavedResult={hasSavedResult}
                 onResultChange={(side, value) => updateResultDraft(match.id, side, value)}
@@ -362,48 +324,6 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-5 shadow-xl shadow-black/10">
-          <h2 className="text-2xl font-black text-white">Predicciones guardadas</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Vista separada para revisar lo que guardaron los participantes. No se cargan
-            predicciones desde el panel admin.
-          </p>
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            {filteredMatches.map((match) => (
-              <div key={match.id} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 transition hover:border-white/20">
-                <p className="text-sm font-bold text-emerald-200">
-                  {match.group} {match.matchday ? `· Fecha ${match.matchday}` : ""}
-                </p>
-                <p className="mt-1 text-sm text-slate-300">
-                  {match.homeTeam} vs {match.awayTeam}
-                </p>
-                <div className="mt-3 space-y-2">
-                  {participants.map((participant) => {
-                    const prediction = predictions[participant.username]?.[match.id];
-                    const isSaved = savedPredictions[participant.username]?.[match.id];
-                    const points = calculatePoints(prediction, results[match.id], isSaved);
-
-                    return (
-                      <div
-                        key={participant.username}
-                        className="flex items-center justify-between gap-3 text-sm"
-                      >
-                        <span className="text-slate-400">{participant.displayName}</span>
-                        <span className="font-bold text-white">
-                          {isSaved && prediction
-                            ? `${prediction.home}-${prediction.away} · ${
-                                points ?? "sin resultado"
-                              } puntos`
-                            : "Sin predicción"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-      </section>
     </main>
   );
 }

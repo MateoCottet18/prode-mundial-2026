@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   emptyScore,
   parseScore,
@@ -9,104 +9,136 @@ import {
   type SavedPredictionsByUser,
   type ScoreInput,
 } from "@/lib/prode";
-import { migrateLegacyStorage, readStorage, storageKeys, writeStorage } from "@/lib/storage";
+import {
+  deletePredictionFromSupabase,
+  fetchPredictionsFromSupabase,
+  recalculatePredictionPoints,
+  savePredictionToSupabase,
+} from "@/lib/services/predictionService";
+import {
+  deleteResultFromSupabase,
+  fetchResultsFromSupabase,
+  saveResultToSupabase,
+} from "@/lib/api/resultsApi";
 
-type PredictionsStorage = {
-  predictions: PredictionsByUser;
-  savedPredictions: SavedPredictionsByUser;
-};
-
+/**
+ * Estado global de predicciones + resultados.
+ *
+ * Fuente de verdad única: Supabase. Cada `save*` hace:
+ *   1. Optimistic update del estado React.
+ *   2. Persistencia en Supabase (upsert/delete).
+ *   3. Refresh desde Supabase para asegurar consistencia entre dispositivos.
+ *
+ * Si la llamada a Supabase falla, devolvemos el error en `error` y
+ * dejamos los datos en memoria como estaban, NO sincronizados con la base.
+ */
 export function useProdeStore() {
   const [predictions, setPredictions] = useState<PredictionsByUser>({});
   const [savedPredictions, setSavedPredictions] = useState<SavedPredictionsByUser>({});
   const [results, setResults] = useState<ResultsByMatch>({});
   const [isReady, setIsReady] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    migrateLegacyStorage();
-    loadStoreFromStorage();
-  }, []);
+  const refresh = useCallback(async () => {
+    setIsSyncing(true);
+    setError(null);
+    try {
+      const [remotePredictions, remoteResults] = await Promise.all([
+        fetchPredictionsFromSupabase(),
+        fetchResultsFromSupabase(),
+      ]);
 
-  const loadStoreFromStorage = () => {
-    const storedPredictions = readStorage<PredictionsStorage>(storageKeys.predictions, {
-      predictions: {},
-      savedPredictions: {},
-    });
-    setPredictions(storedPredictions.predictions ?? {});
-    setSavedPredictions(storedPredictions.savedPredictions ?? {});
-    setResults(readStorage<ResultsByMatch>(storageKeys.results, {}));
-    setIsReady(true);
-  };
-
-  useEffect(() => {
-    const handleStoreChange = () => loadStoreFromStorage();
-
-    window.addEventListener("prode-store-change", handleStoreChange);
-    window.addEventListener("storage", handleStoreChange);
-
-    return () => {
-      window.removeEventListener("prode-store-change", handleStoreChange);
-      window.removeEventListener("storage", handleStoreChange);
-    };
+      setPredictions(remotePredictions?.predictions ?? {});
+      setSavedPredictions(remotePredictions?.savedPredictions ?? {});
+      setResults(remoteResults ?? {});
+    } catch (err) {
+      console.error("[useProdeStore] error refrescando datos", err);
+      setError(err instanceof Error ? err.message : "No se pudieron cargar los datos.");
+    } finally {
+      setIsReady(true);
+      setIsSyncing(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    writeStorage(storageKeys.predictions, { predictions, savedPredictions });
-  }, [isReady, predictions, savedPredictions]);
+    const timeoutId = window.setTimeout(() => void refresh(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [refresh]);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
+    const handler = () => void refresh();
+    window.addEventListener("prode-store-change", handler);
+    return () => window.removeEventListener("prode-store-change", handler);
+  }, [refresh]);
 
-    writeStorage(storageKeys.results, results);
-  }, [isReady, results]);
+  // ---------------------------------------------------------------------------
+  // Predicciones (participante).
+  // ---------------------------------------------------------------------------
 
   const updatePrediction = (
-    username: string,
+    userId: string,
     matchId: string,
     side: keyof ScoreInput,
     value: string,
   ) => {
     setPredictions((current) => ({
       ...current,
-      [username]: {
-        ...(current[username] ?? {}),
+      [userId]: {
+        ...(current[userId] ?? {}),
         [matchId]: {
-          ...(current[username]?.[matchId] ?? emptyScore),
+          ...(current[userId]?.[matchId] ?? emptyScore),
           [side]: value,
         },
       },
     }));
-
     setSavedPredictions((current) => ({
       ...current,
-      [username]: {
-        ...(current[username] ?? {}),
+      [userId]: {
+        ...(current[userId] ?? {}),
         [matchId]: false,
       },
     }));
   };
 
-  const savePrediction = (username: string, matchId: string) => {
-    if (!parseScore(predictions[username]?.[matchId])) {
-      return false;
-    }
+  const savePrediction = async (userId: string, matchId: string) => {
+    const score = predictions[userId]?.[matchId];
+    if (!parseScore(score)) return false;
 
     setSavedPredictions((current) => ({
       ...current,
-      [username]: {
-        ...(current[username] ?? {}),
-        [matchId]: true,
-      },
+      [userId]: { ...(current[userId] ?? {}), [matchId]: true },
     }));
 
-    return true;
+    try {
+      await savePredictionToSupabase({ userId, matchId, score, results });
+      window.dispatchEvent(new Event("prode-store-change"));
+      return true;
+    } catch (err) {
+      console.error("[useProdeStore] no se pudo guardar la predicción", err);
+      setError(err instanceof Error ? err.message : "No se pudo guardar la predicción.");
+      // Rollback del flag local "guardado".
+      setSavedPredictions((current) => ({
+        ...current,
+        [userId]: { ...(current[userId] ?? {}), [matchId]: false },
+      }));
+      return false;
+    }
   };
+
+  const deletePrediction = async (userId: string, matchId: string) => {
+    try {
+      await deletePredictionFromSupabase(userId, matchId);
+      await refresh();
+    } catch (err) {
+      console.error("[useProdeStore] no se pudo eliminar la predicción", err);
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la predicción.");
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Resultados (admin).
+  // ---------------------------------------------------------------------------
 
   const updateResult = (matchId: string, side: keyof ScoreInput, value: string) => {
     setResults((current) => ({
@@ -118,38 +150,64 @@ export function useProdeStore() {
     }));
   };
 
-  const saveResult = (matchId: string, score: ScoreInput) => {
-    if (!parseScore(score)) {
+  const saveResult = async (matchId: string, score: ScoreInput) => {
+    if (!parseScore(score)) return false;
+
+    setResults((current) => ({ ...current, [matchId]: score }));
+
+    try {
+      await saveResultToSupabase(matchId, score);
+      const nextResults = { ...results, [matchId]: score };
+      await recalculatePredictionPoints(nextResults);
+      window.dispatchEvent(new Event("prode-store-change"));
+      return true;
+    } catch (err) {
+      console.error("[useProdeStore] no se pudo guardar el resultado", err);
+      setError(err instanceof Error ? err.message : "No se pudo guardar el resultado.");
       return false;
     }
-
-    setResults((current) => ({
-      ...current,
-      [matchId]: score,
-    }));
-
-    return true;
   };
 
-  const deleteResult = (matchId: string) => {
+  const deleteResult = async (matchId: string) => {
     setResults((current) => {
-      const nextResults = { ...current };
-      delete nextResults[matchId];
-      return nextResults;
+      const next = { ...current };
+      delete next[matchId];
+      return next;
     });
+
+    try {
+      await deleteResultFromSupabase(matchId);
+      const nextResults = { ...results };
+      delete nextResults[matchId];
+      await recalculatePredictionPoints(nextResults);
+      window.dispatchEvent(new Event("prode-store-change"));
+    } catch (err) {
+      console.error("[useProdeStore] no se pudo borrar el resultado", err);
+      setError(err instanceof Error ? err.message : "No se pudo borrar el resultado.");
+    }
   };
 
-  const recalculatePoints = () => {
-    setResults((current) => ({ ...current }));
+  const recalculatePoints = async () => {
+    try {
+      await recalculatePredictionPoints(results);
+      await refresh();
+    } catch (err) {
+      console.error("[useProdeStore] error recalculando puntos", err);
+      setError(err instanceof Error ? err.message : "No se pudo recalcular puntos.");
+    }
   };
 
   return {
     isReady,
+    isSyncing,
+    error,
     predictions,
     savedPredictions,
     results,
+    refresh,
     updatePrediction,
     savePrediction,
+    deletePrediction,
     updateResult,
     saveResult,
     deleteResult,

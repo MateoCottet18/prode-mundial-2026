@@ -4,61 +4,72 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUsers } from "@/hooks/useUsers";
-import { storageKeys, writeStorage } from "@/lib/storage";
 
 export default function RegistroPage() {
   const router = useRouter();
   const { registerParticipant } = useUsers();
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    if (!displayName.trim() || !username.trim() || password.length < 4) {
-      setError("Completá nombre, usuario y una contraseña de al menos 4 caracteres.");
+    if (!displayName.trim() || !email.trim() || !username.trim() || password.length < 6) {
+      setError("Completá nombre, email, usuario y una contraseña de al menos 6 caracteres.");
       return;
     }
 
-    const result = registerParticipant({ displayName, username, password });
-
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-
-    if (result.user) {
-      writeStorage(storageKeys.session, {
-        userId: result.user.username,
-        username: result.user.username,
-        name: result.user.displayName,
-        role: result.user.role,
-        paymentStatus: result.user.paymentStatus,
+    setSubmitting(true);
+    try {
+      const result = await registerParticipant({
+        displayName,
+        name: displayName,
+        email,
+        username,
+        password,
       });
-      window.dispatchEvent(new Event("prode-session-change"));
-    }
 
-    setMessage("Usuario registrado. Te llevamos a cargar el comprobante de pago.");
-    setTimeout(() => router.push("/pago"), 600);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      if (result.requiresEmailConfirmation) {
+        setMessage(
+          "Registro creado. Si Supabase tiene confirmación de email activada, revisá tu bandeja antes de iniciar sesión. Si no llega el correo, pedile al admin que desactive «Confirm email» o que te confirme la cuenta.",
+        );
+        return;
+      }
+
+      // Notificamos al resto de la app para que se recarguen la sesión y los
+      // profiles desde Supabase. La sesión queda activa porque supabase-js
+      // mantiene el JWT internamente.
+      window.dispatchEvent(new Event("prode-session-change"));
+      window.dispatchEvent(new Event("prode-users-change"));
+      setMessage("Usuario registrado. Te llevamos a cargar el comprobante de pago.");
+      setTimeout(() => router.push("/pago"), 600);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <main className="mx-auto grid w-full max-w-6xl items-center gap-8 px-5 py-12 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-16">
       <section>
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-          Registro
-        </p>
+        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">Registro</p>
         <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
           Creá tu usuario participante
         </h1>
         <p className="mt-4 max-w-xl text-slate-300">
-          Los usuarios registrados se guardan en localStorage y siempre entran con rol
-          participante. Al registrarte vas a cargar el comprobante del pago manual.
+          Tu cuenta usa email + contraseña. El email es obligatorio para que el admin pueda
+          contactar al ganador.
         </p>
         <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5 shadow-lg shadow-emerald-950/10">
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-emerald-200">
@@ -83,23 +94,33 @@ export default function RegistroPage() {
         className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-2xl shadow-black/20 backdrop-blur"
       >
         <Field label="Nombre" value={displayName} onChange={setDisplayName} placeholder="Mateo García" />
+        <Field label="Email" value={email} onChange={setEmail} placeholder="tu@email.com" type="email" />
         <Field label="Usuario" value={username} onChange={setUsername} placeholder="mateo" />
         <Field
           label="Contraseña"
           value={password}
           onChange={setPassword}
-          placeholder="mateo123"
+          placeholder="Mínimo 6 caracteres"
           type="password"
         />
 
-        {error ? <p className="mt-4 text-sm font-bold text-red-300">{error}</p> : null}
-        {message ? <p className="mt-4 text-sm font-bold text-emerald-200">{message}</p> : null}
+        {error ? (
+          <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-100">
+            {error}
+          </p>
+        ) : null}
+        {message ? (
+          <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
+            {message}
+          </p>
+        ) : null}
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
+          disabled={submitting}
+          className="mt-6 w-full rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 disabled:opacity-60"
         >
-          Registrarme
+          {submitting ? "Registrando…" : "Registrarme"}
         </button>
       </form>
     </main>

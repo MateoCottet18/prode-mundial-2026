@@ -1,194 +1,83 @@
+/**
+ * Caché ligero en localStorage para UI no crítica.
+ *
+ * IMPORTANTE: los datos reales (usuarios, predicciones, resultados, pagos)
+ * viven en Supabase. Acá sólo guardamos:
+ *
+ *   - `prode-session` : snapshot del SessionUser actual para hidratar la UI
+ *                       sin esperar la query a Supabase. La fuente de verdad
+ *                       sigue siendo `supabase.auth.getUser()` + profiles.
+ *
+ * El resto de keys (predicciones, resultados, users registrados) eran de la
+ * versión local-first y se limpian al arrancar la app vía `clearLegacyKeys()`.
+ */
+
 export const storageKeys = {
   session: "prode-session",
-  registeredUsers: "prode-users",
-  predictions: "prode-predictions",
-  results: "prode-results",
-};
+} as const;
 
-const legacyStorageKeys = {
-  session: "prode-mundial-2026-session",
-  registeredUsers: "prode-mundial-2026-registered-users",
-  predictions: "prode-mundial-2026-predictions",
-  savedPredictions: "prode-mundial-2026-saved-predictions",
-  results: "prode-mundial-2026-results",
-};
+// Keys viejas (predicciones, results, users) que ya no usamos. Las borramos
+// al arrancar para que el navegador no se quede con datos huérfanos que
+// podrían reactivar comportamientos local-first.
+const legacyKeys = [
+  "prode-users",
+  "prode-predictions",
+  "prode-results",
+  "prode-mundial-2026-session",
+  "prode-mundial-2026-registered-users",
+  "prode-mundial-2026-predictions",
+  "prode-mundial-2026-saved-predictions",
+  "prode-mundial-2026-results",
+];
 
 export function readStorage<T>(key: string, fallback: T) {
+  if (typeof window === "undefined") return fallback;
   try {
-    const storedValue = window.localStorage.getItem(key);
-
-    if (!storedValue) {
-      return fallback;
-    }
-
-    return JSON.parse(storedValue) as T;
+    const stored = window.localStorage.getItem(key);
+    if (!stored) return fallback;
+    return JSON.parse(stored) as T;
   } catch {
     return fallback;
   }
 }
 
 export function writeStorage<T>(key: string, value: T) {
+  if (typeof window === "undefined") return { ok: false as const };
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
     return { ok: true as const };
   } catch (error) {
     console.warn("No se pudo guardar en localStorage.", error);
-    window.dispatchEvent(
-      new CustomEvent("prode-storage-error", {
-        detail: "No se pudo guardar localmente. Probá limpiar datos locales desde el panel admin.",
-      }),
-    );
     return { ok: false as const, error };
   }
 }
 
 export function removeStorage(key: string) {
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(key);
   } catch {
-    // Ignore storage cleanup errors.
+    /* noop */
   }
 }
 
-export function migrateLegacyStorage() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  cleanOversizedCurrentSession();
-  migrateLegacySession();
-  migrateLegacyUsers();
-  migrateLegacyPredictions();
-  migrateLegacyResults();
-}
-
-function cleanOversizedCurrentSession() {
-  const session = window.localStorage.getItem(storageKeys.session);
-
-  if (session && (session.length > 2000 || session.includes("data:image") || session.includes("base64"))) {
-    removeStorage(storageKeys.session);
-  }
-}
-
-export function clearLocalProdeData() {
-  Object.values(storageKeys).forEach(removeStorage);
-  Object.values(legacyStorageKeys).forEach(removeStorage);
+/** Limpia el snapshot de sesión local (Supabase Auth se desloguea aparte). */
+export function clearSessionCache() {
+  removeStorage(storageKeys.session);
   window.dispatchEvent(new Event("prode-session-change"));
-  window.dispatchEvent(new Event("prode-users-change"));
-  window.dispatchEvent(new Event("prode-store-change"));
 }
 
-function migrateLegacySession() {
-  const legacySession = window.localStorage.getItem(legacyStorageKeys.session);
-
-  if (!legacySession) {
-    return;
-  }
-
-  if (legacySession.length > 2000 || legacySession.includes("data:image") || legacySession.includes("base64")) {
-    removeStorage(legacyStorageKeys.session);
-    return;
-  }
-
-  if (!window.localStorage.getItem(storageKeys.session)) {
+/**
+ * Elimina cualquier rastro de la app local-first anterior. Idempotente.
+ * Se llama una sola vez al arrancar (`hooks/useAuth.ts` lo dispara).
+ */
+export function clearLegacyKeys() {
+  if (typeof window === "undefined") return;
+  legacyKeys.forEach((key) => {
     try {
-      const parsedSession = JSON.parse(legacySession) as {
-        username?: string;
-        displayName?: string;
-        name?: string;
-        role?: string;
-        paymentStatus?: string;
-      };
-
-      if (parsedSession.username && parsedSession.role) {
-        writeStorage(storageKeys.session, {
-          userId: parsedSession.username,
-          username: parsedSession.username,
-          name: parsedSession.name ?? parsedSession.displayName ?? parsedSession.username,
-          role: parsedSession.role,
-          paymentStatus: parsedSession.paymentStatus ?? "pending",
-        });
-      }
+      window.localStorage.removeItem(key);
     } catch {
-      // Ignore invalid legacy session.
+      /* noop */
     }
-  }
-
-  removeStorage(legacyStorageKeys.session);
-}
-
-function migrateLegacyUsers() {
-  const legacyUsers = window.localStorage.getItem(legacyStorageKeys.registeredUsers);
-
-  if (!legacyUsers || window.localStorage.getItem(storageKeys.registeredUsers)) {
-    return;
-  }
-
-  try {
-    const users = JSON.parse(legacyUsers) as Array<Record<string, unknown>>;
-    writeStorage(storageKeys.registeredUsers, users.map(sanitizeUser));
-  } catch {
-    // Ignore invalid legacy users.
-  } finally {
-    removeStorage(legacyStorageKeys.registeredUsers);
-  }
-}
-
-function migrateLegacyPredictions() {
-  if (window.localStorage.getItem(storageKeys.predictions)) {
-    return;
-  }
-
-  const legacyPredictions = readRawJson(legacyStorageKeys.predictions, {});
-  const legacySavedPredictions = readRawJson(legacyStorageKeys.savedPredictions, {});
-
-  if (Object.keys(legacyPredictions).length || Object.keys(legacySavedPredictions).length) {
-    writeStorage(storageKeys.predictions, {
-      predictions: legacyPredictions,
-      savedPredictions: legacySavedPredictions,
-    });
-  }
-
-  removeStorage(legacyStorageKeys.predictions);
-  removeStorage(legacyStorageKeys.savedPredictions);
-}
-
-function migrateLegacyResults() {
-  if (window.localStorage.getItem(storageKeys.results)) {
-    return;
-  }
-
-  const legacyResults = readRawJson(legacyStorageKeys.results, {});
-
-  if (Object.keys(legacyResults).length) {
-    writeStorage(storageKeys.results, legacyResults);
-  }
-
-  removeStorage(legacyStorageKeys.results);
-}
-
-function readRawJson(key: string, fallback: Record<string, unknown>) {
-  try {
-    const value = window.localStorage.getItem(key);
-    return value ? (JSON.parse(value) as Record<string, unknown>) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function sanitizeUser(user: Record<string, unknown>) {
-  const paymentProof = user.paymentProof as Record<string, unknown> | undefined;
-
-  return {
-    ...user,
-    paymentProof: paymentProof
-      ? {
-          fileName: String(paymentProof.fileName ?? "comprobante"),
-          fileType: String(paymentProof.fileType ?? "image/*"),
-          fileSize: Number(paymentProof.fileSize ?? 0),
-          uploadedAt: String(paymentProof.uploadedAt ?? paymentProof.submittedAt ?? new Date().toISOString()),
-          status: String(paymentProof.status ?? user.paymentStatus ?? "pending_review"),
-        }
-      : undefined,
-  };
+  });
 }
