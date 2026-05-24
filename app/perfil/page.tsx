@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
+import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
 import { useUsers } from "@/hooks/useUsers";
 import { ProfilePredictionCard } from "@/components/ProfilePredictionCard";
 import { AdminOverdueAlert } from "@/components/AdminOverdueAlert";
 import { AdminLoadedResultCard } from "@/components/AdminLoadedResultCard";
+import { PageHeader } from "@/components/PageHeader";
 import { calculatePoints, getParticipantUsers } from "@/lib/prode";
 import { buildRanking } from "@/lib/ranking";
 import { getAllGeneratedMatches } from "@/lib/standings";
@@ -15,11 +18,16 @@ import { getMatchesWithResults, getOverdueMatches } from "@/lib/matchTime";
 
 export default function PerfilPage() {
   const { user, isReady: isAuthReady } = useAuth();
+  const { matches } = useMatches();
   const { predictions, savedPredictions, results, isReady: isStoreReady } = useProdeStore();
   const { registeredUsers, isReady: isUsersReady } = useUsers();
+  const { overridesMap } = useQualificationOverrides();
 
   const isAdmin = user?.role === "admin";
-  const allMatches = useMemo(() => getAllGeneratedMatches(results), [results]);
+  const allMatches = useMemo(
+    () => getAllGeneratedMatches(results, matches, overridesMap),
+    [results, matches, overridesMap],
+  );
 
   if (!isAuthReady) {
     return (
@@ -32,16 +40,15 @@ export default function PerfilPage() {
   if (!user) {
     return (
       <main className="mx-auto w-full max-w-3xl px-5 py-16 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 text-center shadow-2xl shadow-black/20">
-          <h1 className="text-3xl font-black text-white">Iniciá sesión para ver tu perfil</h1>
+        <div className="fc-card p-8 text-center">
+          <h1 className="fc-display-italic text-3xl uppercase tracking-[0.02em] text-white">
+            Iniciá sesión para ver tu perfil
+          </h1>
           <p className="mt-3 text-sm text-slate-300">
             Necesitás estar logueado para ver tu actividad en el prode.
           </p>
-          <Link
-            href="/login"
-            className="mt-6 inline-flex rounded-full bg-emerald-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
-          >
-            Ir al login
+          <Link href="/login" className="fc-cta-fifa mt-6">
+            <span aria-hidden>▸</span> Ir al login
           </Link>
         </div>
       </main>
@@ -71,6 +78,8 @@ export default function PerfilPage() {
       savedPredictions={savedPredictions}
       results={results}
       allMatches={allMatches}
+      matchesList={matches}
+      overridesMap={overridesMap}
       isStoreReady={isStoreReady}
       isUsersReady={isUsersReady}
     />
@@ -91,6 +100,8 @@ type ParticipantProfileViewProps = {
   savedPredictions: ReturnType<typeof useProdeStore>["savedPredictions"];
   results: ReturnType<typeof useProdeStore>["results"];
   allMatches: ReturnType<typeof getAllGeneratedMatches>;
+  matchesList: ReturnType<typeof useMatches>["matches"];
+  overridesMap: ReturnType<typeof useQualificationOverrides>["overridesMap"];
   isStoreReady: boolean;
   isUsersReady: boolean;
 };
@@ -105,12 +116,22 @@ function ParticipantProfileView({
   savedPredictions,
   results,
   allMatches,
+  matchesList,
+  overridesMap,
   isStoreReady,
   isUsersReady,
 }: ParticipantProfileViewProps) {
   const ranking = useMemo(
-    () => buildRanking(registeredUsers, predictions, savedPredictions, results),
-    [registeredUsers, predictions, savedPredictions, results],
+    () =>
+      buildRanking(
+        registeredUsers,
+        predictions,
+        savedPredictions,
+        results,
+        matchesList,
+        overridesMap,
+      ),
+    [registeredUsers, predictions, savedPredictions, results, matchesList, overridesMap],
   );
 
   const myEntry = useMemo(
@@ -145,60 +166,57 @@ function ParticipantProfileView({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
-      <section className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-emerald-300/10 via-white/[0.04] to-lime-300/10 p-6 shadow-2xl shadow-black/20 sm:p-8">
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">Mi perfil</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-          {userName}
-        </h1>
-        <p className="mt-2 text-sm text-slate-300">
-          @{userUsername} · Rol: {userRole}
-        </p>
+      <PageHeader
+        overline={`@${userUsername} · ${userRole}`}
+        title={userName}
+        description="Tu actividad en el torneo: puntos, posición, predicciones cargadas."
+        tone="lime"
+        actions={
+          <>
+            <Link href="/partidos" className="fc-cta-fifa">
+              <span aria-hidden>▸</span> Predicciones
+            </Link>
+            <Link href="/tabla" className="fc-cta-ghost">
+              Ver ranking
+            </Link>
+          </>
+        }
+      />
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <Stat label="Puntos totales" value={`${myEntry?.points ?? 0}`} highlight />
-          <Stat
-            label="Posición"
-            value={
-              myEntry
-                ? `${myEntry.rank}° / ${totalParticipants}`
-                : `— / ${totalParticipants}`
-            }
-          />
-          <Stat
-            label="Predicciones guardadas"
-            value={
-              isStoreReady && isUsersReady
-                ? `${savedCount}${scoredCount ? ` · ${scoredCount} con puntaje` : ""}`
-                : "…"
-            }
-          />
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <Link
-            href="/partidos"
-            className="rounded-full bg-emerald-300 px-5 py-2 font-black text-slate-950 transition hover:-translate-y-0.5"
-          >
-            Cargar predicciones
-          </Link>
-          <Link
-            href="/tabla"
-            className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-          >
-            Ver ranking
-          </Link>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-3">
+        <Stat label="Puntos totales" value={`${myEntry?.points ?? 0}`} highlight />
+        <Stat
+          label="Posición"
+          value={
+            myEntry
+              ? `${myEntry.rank}° / ${totalParticipants}`
+              : `— / ${totalParticipants}`
+          }
+        />
+        <Stat
+          label="Predicciones guardadas"
+          value={
+            isStoreReady && isUsersReady
+              ? `${savedCount}${scoredCount ? ` · ${scoredCount} con puntaje` : ""}`
+              : "…"
+          }
+        />
       </section>
 
       <section className="mt-10">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-200">
-              Mis predicciones
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">Partidos pronosticados</h2>
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-cyan)] shadow-[0_0_18px_rgba(56,212,255,0.55)]" />
+            <div>
+              <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-cyan)]">
+                Mis predicciones
+              </p>
+              <h2 className="mt-1 fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+                Partidos pronosticados
+              </h2>
+            </div>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.18em] text-slate-400 tabular-nums">
             {userPredictions.length === 0
               ? "Todavía no cargaste ninguna predicción."
               : `${userPredictions.length} partido${userPredictions.length === 1 ? "" : "s"}`}
@@ -206,7 +224,7 @@ function ParticipantProfileView({
         </header>
 
         {userPredictions.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+          <div className="fc-card p-8 text-center">
             <p className="text-slate-300">
               Cuando cargues tus pronósticos en{" "}
               <Link href="/partidos" className="font-bold text-emerald-200 underline">
@@ -263,63 +281,53 @@ function AdminProfileView({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
-      <section className="rounded-[2rem] border border-emerald-300/30 bg-gradient-to-br from-emerald-300/15 via-white/[0.04] to-cyan-300/10 p-6 shadow-2xl shadow-black/20 sm:p-8">
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-          Panel de administración
-        </p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-          {userName}
-        </h1>
-        <p className="mt-2 text-sm text-slate-300">
-          @{userUsername} · Rol: admin
-        </p>
+      <PageHeader
+        overline={`@${userUsername} · admin`}
+        title={`${userName} · Sala de control`}
+        description="KPIs del torneo · resultados cargados · alertas de vencidos."
+        tone="magenta"
+        actions={
+          <>
+            <Link href="/admin" className="fc-cta-fifa">
+              <span aria-hidden>▸</span> Cargar resultados
+            </Link>
+            <Link href="/tabla" className="fc-cta-ghost">
+              Ver ranking
+            </Link>
+          </>
+        }
+      />
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <Stat
-            label="Resultados cargados"
-            value={isStoreReady ? `${loadedMatches.length}` : "…"}
-            highlight
-          />
-          <Stat
-            label="Vencidos sin cargar"
-            value={isStoreReady ? `${overdueMatches.length}` : "…"}
-            tone={overdueMatches.length > 0 ? "danger" : "neutral"}
-          />
-          <Stat
-            label="Partidos totales"
-            value={`${allMatches.length}`}
-          />
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <Link
-            href="/admin"
-            className="rounded-full bg-emerald-300 px-5 py-2 font-black text-slate-950 transition hover:-translate-y-0.5"
-          >
-            Ir a cargar resultados
-          </Link>
-          <Link
-            href="/tabla"
-            className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-          >
-            Ver ranking
-          </Link>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-3">
+        <Stat
+          label="Resultados cargados"
+          value={isStoreReady ? `${loadedMatches.length}` : "…"}
+          highlight
+        />
+        <Stat
+          label="Vencidos sin cargar"
+          value={isStoreReady ? `${overdueMatches.length}` : "…"}
+          tone={overdueMatches.length > 0 ? "danger" : "neutral"}
+        />
+        <Stat label="Partidos totales" value={`${allMatches.length}`} />
       </section>
 
       <AdminOverdueAlert overdueMatches={overdueMatches} resultsHref="/admin" />
 
       <section className="mt-10">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-200">
-              Resultados cargados
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">
-              Partidos con marcador final
-            </h2>
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-lime)] shadow-[0_0_18px_rgba(212,255,63,0.55)]" />
+            <div>
+              <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-lime)]">
+                Resultados cargados
+              </p>
+              <h2 className="mt-1 fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+                Partidos con marcador final
+              </h2>
+            </div>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.18em] text-slate-400 tabular-nums">
             {loadedMatches.length === 0
               ? "Todavía no cargaste ningún resultado."
               : `${loadedMatches.length} partido${loadedMatches.length === 1 ? "" : "s"} con resultado`}
@@ -327,7 +335,7 @@ function AdminProfileView({
         </header>
 
         {loadedMatches.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center">
+          <div className="fc-card p-8 text-center">
             <p className="text-slate-300">
               Cargá los primeros resultados desde{" "}
               <Link href="/admin" className="font-bold text-emerald-200 underline">
@@ -370,17 +378,35 @@ function Stat({
 }) {
   const palette =
     tone === "danger"
-      ? "border-red-300/40 bg-red-300/10"
+      ? "border-[var(--fc-magenta)]/40 bg-[var(--fc-magenta)]/[0.06]"
       : highlight
-        ? "border-emerald-300/40 bg-emerald-300/10"
-        : "border-white/10 bg-white/[0.05]";
+        ? "border-[var(--fc-lime)]/40 bg-[var(--fc-lime)]/[0.06] fc-glow-lime"
+        : "border-white/[0.07] bg-white/[0.03]";
+  const dot =
+    tone === "danger"
+      ? "bg-[var(--fc-magenta)] fc-pulse-dot"
+      : highlight
+        ? "bg-[var(--fc-lime)]"
+        : "bg-slate-400";
+  const valueColor =
+    tone === "danger"
+      ? "text-[var(--fc-magenta)]"
+      : highlight
+        ? "text-[var(--fc-lime)]"
+        : "text-white";
 
   return (
-    <div className={`rounded-3xl border p-5 ${palette}`}>
-      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-200/80">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black text-white">{value}</p>
+    <div
+      className={`fc-broadcast-cut-sm relative flex flex-col gap-2 overflow-hidden border p-5 ${palette}`}
+    >
+      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
+      <div className="relative flex items-center gap-2">
+        <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-400">
+          {label}
+        </p>
+      </div>
+      <p className={`fc-stencil relative text-4xl ${valueColor}`}>{value}</p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Oswald } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
 import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import "./globals.css";
@@ -12,6 +12,18 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+/**
+ * Oswald: condensed display sans inspirada en posters deportivos y lower-thirds
+ * televisivos. Se usa para titulares, overlines, scores y badges. Italic
+ * agresivo para hero/scoreboards (.fc-headline-mega y .fc-stencil).
+ */
+const oswald = Oswald({
+  variable: "--font-oswald",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -27,11 +39,42 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#030712] text-white">
-        <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_32%),radial-gradient(circle_at_75%_5%,rgba(59,130,246,0.18),transparent_28%),linear-gradient(135deg,#030712_0%,#07111f_45%,#020617_100%)]" />
-        <div className="fixed left-1/2 top-24 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-400/10 blur-3xl" />
+      <body className="relative min-h-full bg-[#02040a] text-white">
+        {/*
+          Capas de fondo (orden de abajo → arriba):
+          1. Base midnight con halos de color FIFA (lime arriba, magenta lateral, cyan inferior).
+          2. Halftone lime sutil para textura impresa.
+          3. Diagonales finas + pitch-grid.
+          4. Vignette inferior que ancla el contenido.
+          5. Grain noise micro para evitar la sensación 100% vector.
+        */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-30 bg-[radial-gradient(ellipse_60%_45%_at_50%_-5%,_rgba(212,255,63,0.18)_0%,_rgba(15,23,42,0)_50%),radial-gradient(ellipse_38%_55%_at_92%_8%,_rgba(255,45,111,0.12)_0%,_rgba(2,6,12,0)_60%),radial-gradient(ellipse_50%_45%_at_8%_85%,_rgba(56,212,255,0.1)_0%,_rgba(2,6,12,0)_60%),linear-gradient(180deg,_#03070f_0%,_#02050b_55%,_#010308_100%)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-20 fc-halftone-lime opacity-50"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10 fc-pitch-grid opacity-35"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10 fc-diagonal opacity-60"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[18vh] bg-gradient-to-t from-[#02050b] via-[#02050b]/55 to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10 fc-noise opacity-[0.18] mix-blend-overlay"
+        />
+
         <Navbar />
         <StorageErrorBanner />
         {children}

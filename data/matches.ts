@@ -15,6 +15,8 @@ export type GroupName =
 export type Matchday = 1 | 2 | 3;
 export type Stage = "grupos" | "16avos" | "octavos" | "cuartos" | "semifinal" | "final";
 
+export type TeamSource = "auto" | "manual";
+
 export type Match = {
   id: string;
   group: GroupName | Stage;
@@ -26,6 +28,11 @@ export type Match = {
   awayTeam: string;
   venue: string;
   city: string;
+  // Sólo se settea para partidos generados de fase eliminatoria
+  // (`lib/standings.ts > getKnockoutMatches`). Para los 72 partidos de
+  // grupos queda `undefined` porque los equipos están fijos.
+  homeTeamSource?: TeamSource;
+  awayTeamSource?: TeamSource;
 };
 
 export const groupNames: GroupName[] = [

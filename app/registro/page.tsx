@@ -48,9 +48,6 @@ export default function RegistroPage() {
         return;
       }
 
-      // Notificamos al resto de la app para que se recarguen la sesión y los
-      // profiles desde Supabase. La sesión queda activa porque supabase-js
-      // mantiene el JWT internamente.
       window.dispatchEvent(new Event("prode-session-change"));
       window.dispatchEvent(new Event("prode-users-change"));
       setMessage("Usuario registrado. Te llevamos a cargar el comprobante de pago.");
@@ -61,67 +58,89 @@ export default function RegistroPage() {
   };
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl items-center gap-8 px-5 py-12 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-16">
-      <section>
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">Registro</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-          Creá tu usuario participante
-        </h1>
-        <p className="mt-4 max-w-xl text-slate-300">
-          Tu cuenta usa email + contraseña. El email es obligatorio para que el admin pueda
-          contactar al ganador.
-        </p>
-        <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5 shadow-lg shadow-emerald-950/10">
-          <p className="text-sm font-bold uppercase tracking-[0.22em] text-emerald-200">
+    <main className="mx-auto grid w-full max-w-6xl items-start gap-10 px-5 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-14">
+      <section className="relative">
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-magenta)] shadow-[0_0_18px_rgba(255,45,111,0.55)]" />
+          <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-magenta)]">
             Inscripción
           </p>
-          <p className="mt-2 text-3xl font-black text-white">$10.000 pesos</p>
-          <p className="mt-2 text-sm text-slate-300">
-            Transferí al alias mateo.cottet y subí el comprobante. Cuando el admin lo aprueba,
-            tu usuario queda habilitado para jugar.
-          </p>
         </div>
-        <Link
-          href="/login"
-          className="mt-6 inline-flex rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-        >
+        <h1 className="mt-4 fc-headline-mega text-[3rem] sm:text-6xl lg:text-7xl">
+          <span className="block text-white">SUMATE</span>
+          <span className="block text-[var(--fc-lime)] drop-shadow-[0_8px_24px_rgba(212,255,63,0.35)]">
+            AL TORNEO
+          </span>
+        </h1>
+        <p className="mt-6 max-w-xl text-base leading-7 text-slate-300">
+          Tu cuenta usa email + contraseña. El email es obligatorio para que el admin pueda
+          contactar al ganador del premio mayor.
+        </p>
+
+        <article className="fc-broadcast-cut mt-7 relative flex flex-col gap-2 overflow-hidden border border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/[0.06] p-6 fc-glow-lime">
+          <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
+          <p className="relative fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
+            Inscripción
+          </p>
+          <p className="relative fc-stencil text-5xl text-white">
+            $10.000 <span className="fc-display-italic text-base text-slate-400">pesos</span>
+          </p>
+          <p className="relative text-sm leading-6 text-slate-300">
+            Transferí al alias{" "}
+            <strong className="text-[var(--fc-lime)]">mateo.cottet</strong> y declarás quién
+            hizo la transferencia. Cuando el admin lo aprueba, tu usuario queda habilitado.
+          </p>
+        </article>
+
+        <Link href="/login" className="fc-cta-ghost mt-7">
           Ya tengo usuario
         </Link>
       </section>
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-2xl shadow-black/20 backdrop-blur"
+        className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.07] bg-[#03060d] p-7 sm:p-8"
       >
-        <Field label="Nombre" value={displayName} onChange={setDisplayName} placeholder="Mateo García" />
-        <Field label="Email" value={email} onChange={setEmail} placeholder="tu@email.com" type="email" />
-        <Field label="Usuario" value={username} onChange={setUsername} placeholder="mateo" />
-        <Field
-          label="Contraseña"
-          value={password}
-          onChange={setPassword}
-          placeholder="Mínimo 6 caracteres"
-          type="password"
-        />
+        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
 
-        {error ? (
-          <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-100">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
-            {message}
-          </p>
-        ) : null}
+        <div className="relative">
+          <span className="fc-chip fc-chip-magenta">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-magenta)] fc-pulse-dot-lime" />
+            Registro
+          </span>
+          <h2 className="mt-3 fc-display-italic text-3xl uppercase tracking-[0.02em] text-white">
+            Creá tu usuario
+          </h2>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 disabled:opacity-60"
-        >
-          {submitting ? "Registrando…" : "Registrarme"}
-        </button>
+          <Field label="Nombre" value={displayName} onChange={setDisplayName} placeholder="Mateo García" />
+          <Field label="Email" value={email} onChange={setEmail} placeholder="tu@email.com" type="email" />
+          <Field label="Usuario" value={username} onChange={setUsername} placeholder="mateo" />
+          <Field
+            label="Contraseña"
+            value={password}
+            onChange={setPassword}
+            placeholder="Mínimo 6 caracteres"
+            type="password"
+          />
+
+          {error ? (
+            <p className="fc-broadcast-cut-sm mt-5 border border-[var(--fc-magenta)]/30 bg-[var(--fc-magenta)]/10 px-4 py-3 text-sm font-bold text-[var(--fc-magenta)]">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p className="fc-broadcast-cut-sm mt-5 border border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/10 px-4 py-3 text-sm font-bold text-[var(--fc-lime)]">
+              {message}
+            </p>
+          ) : null}
+
+          <button type="submit" disabled={submitting} className="fc-cta-fifa mt-7 w-full justify-center">
+            <span aria-hidden>▸</span>
+            {submitting ? "Registrando…" : "Registrarme"}
+          </button>
+        </div>
       </form>
     </main>
   );
@@ -141,13 +160,15 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="mt-5 block first:mt-0">
-      <span className="text-sm font-bold text-slate-200">{label}</span>
+    <label className="mt-5 block first:mt-6">
+      <span className="fc-display-italic text-[0.7rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
+        {label}
+      </span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-2xl border border-white/15 bg-slate-950/85 px-4 text-white outline-none transition placeholder:text-slate-400 hover:border-white/25 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/15"
+        className="fc-broadcast-cut-sm mt-2 h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15"
         placeholder={placeholder}
       />
     </label>

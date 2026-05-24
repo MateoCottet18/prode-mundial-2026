@@ -28,13 +28,16 @@ export function StorageErrorBanner() {
 
   return (
     <div className="mx-auto mt-4 w-full max-w-7xl px-5 sm:px-6 lg:px-8">
-      <div className="rounded-2xl border border-red-300/30 bg-red-300/10 p-4 text-sm font-bold text-red-100">
+      <div className="rounded-2xl border border-red-300/30 bg-red-300/10 p-4 text-sm text-red-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p>{message}</p>
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-red-300 fc-pulse-dot" />
+            <p className="font-bold">{message}</p>
+          </div>
           <button
             type="button"
             onClick={() => setMessage("")}
-            className="rounded-full border border-red-200/30 px-4 py-2 text-red-50 transition hover:bg-red-200/10"
+            className="fc-display rounded-lg border border-red-200/30 px-3.5 py-1.5 text-[0.7rem] uppercase tracking-[0.16em] text-red-50 transition hover:bg-red-200/10"
           >
             Cerrar
           </button>

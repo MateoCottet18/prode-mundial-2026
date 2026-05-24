@@ -3,12 +3,21 @@ import { matches } from "@/data/matches";
 export type UserRole = "participante" | "admin";
 export type PaymentStatus = "pending" | "pending_review" | "approved" | "rejected";
 
+/**
+ * Información mínima del último intento de pago de un usuario.
+ *
+ * El flujo nuevo NO sube archivo: el usuario solo declara `payerName` (quien
+ * hizo la transferencia) y el admin aprueba/rechaza. Los campos `file*` y
+ * `storagePath` quedan opcionales y sólo aparecen en filas legacy de
+ * `public.payments` que ya tenían comprobantes.
+ */
 export type PaymentProof = {
-  fileName: string;
-  fileType: string;
-  fileSize: number;
+  payerName?: string | null;
   uploadedAt: string;
   status: PaymentStatus;
+  fileName?: string | null;
+  fileType?: string | null;
+  fileSize?: number | null;
 };
 
 export type AppUser = {

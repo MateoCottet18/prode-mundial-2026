@@ -54,81 +54,102 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl items-center gap-8 px-5 py-12 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-16">
-      <section>
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">Login</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-          Entrá al Prode Mundial 2026
+    <main className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-14">
+      <section className="relative">
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-lime)] shadow-[0_0_18px_rgba(212,255,63,0.55)]" />
+          <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-lime)]">
+            Acceso participantes
+          </p>
+        </div>
+        <h1 className="mt-4 fc-headline-mega text-[3rem] sm:text-6xl lg:text-7xl">
+          <span className="block text-white">VOLVÉ AL</span>
+          <span className="block text-[var(--fc-lime)] drop-shadow-[0_8px_24px_rgba(212,255,63,0.35)]">
+            CAMPO
+          </span>
         </h1>
-        <p className="mt-4 max-w-xl text-slate-400">
-          Podés ingresar con tu <strong className="text-white">email</strong> o con tu{" "}
-          <strong className="text-white">usuario</strong> y la contraseña.
+        <p className="mt-6 max-w-xl text-base leading-7 text-slate-300">
+          Ingresá con tu <strong className="text-white">email</strong> o tu{" "}
+          <strong className="text-white">usuario</strong>. Tus predicciones, puntos y posición
+          siguen exactamente donde los dejaste.
         </p>
-        <Link
-          href="/registro"
-          className="mt-6 inline-flex rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-        >
-          Crear nuevo usuario
+        <Link href="/registro" className="fc-cta-ghost mt-7">
+          + Crear nuevo usuario
         </Link>
       </section>
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-2xl shadow-black/20 backdrop-blur"
+        className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.07] bg-[#03060d] p-7 sm:p-8"
         autoComplete="on"
       >
-        <label className="block">
-          <span className="text-sm font-bold text-slate-300">Email o usuario</span>
-          <input
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            className="mt-2 h-12 w-full rounded-2xl border border-white/15 bg-slate-950/85 px-4 text-white outline-none transition placeholder:text-slate-400 hover:border-white/25 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/15"
-            placeholder="mateocottet o tu@email.com"
-            autoComplete="username"
-            autoCapitalize="off"
-            spellCheck={false}
-            disabled={submitting}
-          />
-        </label>
+        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
 
-        <label className="mt-5 block">
-          <span className="text-sm font-bold text-slate-300">Contraseña</span>
-          <div className="relative mt-2">
+        <div className="relative">
+          <span className="fc-chip fc-chip-cyan">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-cyan)] fc-pulse-dot-lime" />
+            Login
+          </span>
+          <h2 className="mt-3 fc-display-italic text-3xl uppercase tracking-[0.02em] text-white">
+            Iniciá sesión
+          </h2>
+
+          <label className="mt-6 block">
+            <span className="fc-display-italic text-[0.7rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
+              Usuario o email
+            </span>
             <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="h-12 w-full rounded-2xl border border-white/15 bg-slate-950/85 px-4 pr-20 text-white outline-none transition placeholder:text-slate-400 hover:border-white/25 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/15"
-              placeholder="Tu contraseña"
-              autoComplete="current-password"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              className="fc-broadcast-cut-sm mt-2 h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15"
+              placeholder="usuario · tu@email.com"
+              autoComplete="username"
+              autoCapitalize="off"
+              spellCheck={false}
               disabled={submitting}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((current) => !current)}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              aria-pressed={showPassword}
-              disabled={submitting}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-            >
-              {showPassword ? "Ocultar" : "Ver"}
-            </button>
-          </div>
-        </label>
+          </label>
 
-        {error ? (
-          <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-100">
-            {error}
-          </p>
-        ) : null}
+          <label className="mt-5 block">
+            <span className="fc-display-italic text-[0.7rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
+              Contraseña
+            </span>
+            <div className="relative mt-2">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="fc-broadcast-cut-sm h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 pr-20 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={submitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-pressed={showPassword}
+                disabled={submitting}
+                className="fc-broadcast-cut-sm fc-display-italic absolute right-2 top-1/2 -translate-y-1/2 border border-white/[0.07] bg-white/[0.04] px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.18em] text-slate-200 transition hover:bg-white/15 disabled:opacity-50"
+              >
+                {showPassword ? "Ocultar" : "Ver"}
+              </button>
+            </div>
+          </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 disabled:opacity-60"
-        >
-          {submitting ? "Iniciando sesión…" : "Iniciar sesión"}
-        </button>
+          {error ? (
+            <p className="fc-broadcast-cut-sm mt-5 border border-[var(--fc-magenta)]/30 bg-[var(--fc-magenta)]/10 px-4 py-3 text-sm font-bold text-[var(--fc-magenta)]">
+              {error}
+            </p>
+          ) : null}
+
+          <button type="submit" disabled={submitting} className="fc-cta-fifa mt-7 w-full justify-center">
+            <span aria-hidden>▸</span>
+            {submitting ? "Iniciando sesión…" : "Iniciar sesión"}
+          </button>
+        </div>
       </form>
     </main>
   );

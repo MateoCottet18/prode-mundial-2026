@@ -71,23 +71,36 @@ export async function fetchProfiles() {
   })) satisfies AppUser[];
 }
 
-export async function updateProfilePaymentStatus(userIdOrUsername: string, paymentStatus: PaymentStatus) {
+/**
+ * Actualiza profiles.payment_status. Acepta UUID o username.
+ * Devuelve el `id` (uuid) del profile actualizado para encadenar con
+ * `paymentService.updateLatestPaymentStatus`. Devuelve `null` si Supabase
+ * no está configurado o no se encontró el profile.
+ */
+export async function updateProfilePaymentStatus(
+  userIdOrUsername: string,
+  paymentStatus: PaymentStatus,
+): Promise<string | null> {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return false;
+    return null;
   }
 
-  const query = supabase.from("profiles").update({ payment_status: paymentStatus });
-  const { error } = isUuid(userIdOrUsername)
-    ? await query.eq("id", userIdOrUsername)
-    : await query.eq("username", userIdOrUsername);
+  const baseQuery = supabase
+    .from("profiles")
+    .update({ payment_status: paymentStatus })
+    .select("id");
+
+  const { data, error } = isUuid(userIdOrUsername)
+    ? await baseQuery.eq("id", userIdOrUsername).maybeSingle()
+    : await baseQuery.eq("username", userIdOrUsername).maybeSingle();
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return true;
+  return data?.id ?? null;
 }
 
 export function mapProfileRole(role: string): UserRole {

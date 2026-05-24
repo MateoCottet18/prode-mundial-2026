@@ -85,7 +85,9 @@ export async function POST(request: Request) {
 
   const identity = { email, username };
   const role = enforceRoleForUser(identity, "participante");
-  const paymentStatus = enforcePaymentStatusForUser(identity, "pending_review");
+  // Usuario nuevo: arranca en 'pending' (sin comprobante subido).
+  // Pasa a 'pending_review' recién cuando sube un comprobante en /pago.
+  const paymentStatus = enforcePaymentStatusForUser(identity, "pending");
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email,

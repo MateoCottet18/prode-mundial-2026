@@ -52,7 +52,8 @@ export async function POST(request: Request) {
   // lock role and payment_status.
   const identity = { email, username };
   const effectiveRole = enforceRoleForUser(identity, "participante");
-  const effectivePaymentStatus = enforcePaymentStatusForUser(identity, "pending_review");
+  // Usuario nuevo: 'pending' (todavía no subió comprobante).
+  const effectivePaymentStatus = enforcePaymentStatusForUser(identity, "pending");
 
   const { error } = await supabase.from("profiles").insert({
     id,

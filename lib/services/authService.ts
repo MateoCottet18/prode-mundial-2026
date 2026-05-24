@@ -134,7 +134,7 @@ async function registerViaServerApi(input: RegisterInput) {
     username: data.username!,
     name: data.name!,
     role: (data.role ?? "participante") as SessionUser["role"],
-    paymentStatus: (data.paymentStatus ?? "pending_review") as SessionUser["paymentStatus"],
+    paymentStatus: (data.paymentStatus ?? "pending") as SessionUser["paymentStatus"],
   };
 }
 
@@ -210,7 +210,7 @@ async function registerViaClientSignUp(
     username: normalizedUsername,
     name: input.name,
     role: "participante",
-    paymentStatus: "pending_review",
+    paymentStatus: "pending",
     requiresEmailConfirmation,
     debug,
   } satisfies RegisterResult;
@@ -357,10 +357,33 @@ async function loginWithSupabaseInternal(identifier: string, password: string) {
   }
 
   console.log("[login] paso 2: signInWithPassword(", email, ") …");
-  const { data, error } = await loginStep(
+  let { data, error } = await loginStep(
     supabase.auth.signInWithPassword({ email, password }),
     "sign-in",
   );
+
+  // Auto-confirm: si Supabase dice "email_not_confirmed", llamamos al endpoint
+  // server-side (`/api/auth/confirm-email`) que usa service role para marcar
+  // `email_confirmed_at` y reintentamos el sign-in UNA sola vez. Esto cubre el
+  // caso de usuarios viejos creados antes de que el registro server-side con
+  // `email_confirm: true` fuera el camino estándar. No reintentamos para otros
+  // errores (contraseña inválida, etc.) para evitar loops y leaks.
+  if (error && !data?.user) {
+    const message = error.message?.toLowerCase() ?? "";
+    if (message.includes("not confirmed") || message.includes("email_not_confirmed")) {
+      console.warn("[login] email no confirmado, intentando auto-confirm…");
+      const confirmed = await tryAutoConfirmEmail(email);
+      if (confirmed) {
+        console.log("[login] auto-confirm OK, reintentando signInWithPassword…");
+        const retry = await loginStep(
+          supabase.auth.signInWithPassword({ email, password }),
+          "sign-in",
+        );
+        data = retry.data;
+        error = retry.error;
+      }
+    }
+  }
 
   if (error || !data.user) {
     const message = error?.message?.toLowerCase() ?? "";
@@ -601,4 +624,40 @@ function maskEmailForLog(email: string) {
   const [local, domain] = email.split("@");
   if (!domain) return "***";
   return `${local?.slice(0, 2) ?? ""}***@${domain}`;
+}
+
+/**
+ * Llama a `/api/auth/confirm-email` (server-side, service role) para forzar
+ * `email_confirmed_at` en `auth.users`. Devuelve `true` si quedó confirmado
+ * (incluye el caso `noop` donde ya lo estaba). No tira excepciones: cualquier
+ * fallo de red o 4xx/5xx devuelve `false` y dejamos que el flujo de login
+ * arroje la `LoginFailure` original.
+ */
+async function tryAutoConfirmEmail(email: string): Promise<boolean> {
+  try {
+    const response = await fetch("/api/auth/confirm-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+      cache: "no-store",
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      action?: string;
+      message?: string;
+    };
+    if (response.ok && body.ok && (body.action === "confirmed" || body.action === "noop")) {
+      return true;
+    }
+    console.warn(
+      "[login] auto-confirm no aplicado",
+      response.status,
+      body.action,
+      body.message,
+    );
+    return false;
+  } catch (err) {
+    console.warn("[login] auto-confirm error de red", err);
+    return false;
+  }
 }

@@ -32,12 +32,30 @@ export type ResultRow = {
 export type PaymentRow = {
   id?: string;
   user_id: string;
-  file_name: string;
-  file_size: number;
-  file_type: string;
+  payer_name?: string | null;
+  /** Legacy: el flujo nuevo NO sube archivo. Mantengo los campos opcionales
+   *  para que filas viejas (con comprobante) sigan deserializando bien. */
+  file_name?: string | null;
+  file_size?: number | null;
+  file_type?: string | null;
   storage_path?: string | null;
   status: PaymentStatus;
   uploaded_at?: string;
+};
+
+export type MatchRow = {
+  id: string;
+  home_team: string;
+  away_team: string;
+  match_date: string | null;
+  kickoff_time: string | null;
+  group_name: string | null;
+  stage: "grupos" | "16avos" | "octavos" | "cuartos" | "semifinal" | "final";
+  matchday: number | null;
+  venue: string | null;
+  city: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export function toScoreInput(homeGoals: number, awayGoals: number): ScoreInput {

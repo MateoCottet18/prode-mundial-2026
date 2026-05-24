@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AdminResultCard } from "@/components/AdminResultCard";
-import { matches, type Matchday, type Stage } from "@/data/matches";
+import { AdminAccordion } from "@/components/admin/AdminAccordion";
+import { AdminPaymentsSection } from "@/components/admin/AdminPaymentsSection";
+import { AdminResultsSection } from "@/components/admin/AdminResultsSection";
+import { PageHeader } from "@/components/PageHeader";
+import { KnockoutBracket } from "@/components/bracket/KnockoutBracket";
+import { QualificationOverridesAdmin } from "@/components/QualificationOverridesAdmin";
+import { buildBracket } from "@/lib/bracket/buildBracket";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
+import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
 import { useUsers } from "@/hooks/useUsers";
 import {
   emptyScore,
@@ -14,25 +21,11 @@ import {
 } from "@/lib/prode";
 import { getAllGeneratedMatches } from "@/lib/standings";
 
-type AdminFilter =
-  | { type: "todos"; label: "Todos" }
-  | { type: "fecha"; label: string; value: Matchday }
-  | { type: "fase"; label: string; value: Exclude<Stage, "grupos"> };
-
-const adminFilters: AdminFilter[] = [
-  { type: "todos", label: "Todos" },
-  { type: "fecha", label: "Fecha 1", value: 1 },
-  { type: "fecha", label: "Fecha 2", value: 2 },
-  { type: "fecha", label: "Fecha 3", value: 3 },
-  { type: "fase", label: "16avos", value: "16avos" },
-  { type: "fase", label: "Octavos", value: "octavos" },
-  { type: "fase", label: "Cuartos", value: "cuartos" },
-  { type: "fase", label: "Semifinal", value: "semifinal" },
-  { type: "fase", label: "Final", value: "final" },
-];
+type SectionId = "payments" | "overrides" | "bracket" | "results";
 
 export default function AdminPage() {
   const { user, isReady: isAuthReady } = useAuth();
+  const { matches } = useMatches();
   const {
     results,
     saveResult,
@@ -40,22 +33,27 @@ export default function AdminPage() {
     recalculatePoints,
   } = useProdeStore();
   const { registeredUsers, updatePaymentStatus } = useUsers();
-  const allMatches = useMemo(() => getAllGeneratedMatches(results), [results]);
-  const [activeFilter, setActiveFilter] = useState<AdminFilter>(adminFilters[0]);
+  const {
+    overrides,
+    overridesMap,
+    saveOverride,
+    removeOverride,
+    isReady: areOverridesReady,
+    error: overridesError,
+  } = useQualificationOverrides();
+
+  const allMatches = useMemo(
+    () => getAllGeneratedMatches(results, matches, overridesMap),
+    [results, matches, overridesMap],
+  );
+  const bracketLayout = useMemo(
+    () => buildBracket(results, matches, overridesMap),
+    [results, matches, overridesMap],
+  );
+
+  const [openSection, setOpenSection] = useState<SectionId | null>(null);
   const [resultDrafts, setResultDrafts] = useState<Record<string, ScoreInput>>({});
   const [editingResults, setEditingResults] = useState<Record<string, boolean>>({});
-
-  const filteredMatches = useMemo(() => {
-    if (activeFilter.type === "todos") {
-      return allMatches;
-    }
-
-    if (activeFilter.type === "fecha") {
-      return matches.filter((match) => match.matchday === activeFilter.value);
-    }
-
-    return allMatches.filter((match) => match.stage === activeFilter.value);
-  }, [activeFilter, allMatches]);
 
   if (isAuthReady && !user) {
     return <AccessCard title="Iniciá sesión como admin" href="/login" label="Ir al login" />;
@@ -71,7 +69,21 @@ export default function AdminPage() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // KPIs / contadores para mostrar en los headers de los accordions.
+  // ---------------------------------------------------------------------------
   const loadedResults = allMatches.filter((match) => parseScore(results[match.id])).length;
+  const pendingResults = allMatches.length - loadedResults;
+  const loadedGroupResults = matches.filter((match) => parseScore(results[match.id])).length;
+  const pendingGroupResults = matches.length - loadedGroupResults;
+  const pendingPayments = registeredUsers.filter(
+    (u) => u.paymentStatus === "pending_review",
+  ).length;
+  const overridesCount = overrides.length;
+
+  const toggleSection = (section: SectionId) => {
+    setOpenSection((current) => (current === section ? null : section));
+  };
 
   const updateResultDraft = (matchId: string, side: keyof ScoreInput, value: string) => {
     setResultDrafts((currentDrafts) => ({
@@ -109,235 +121,157 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
-      <section className="mb-8 flex flex-col justify-between gap-5 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-            Panel admin
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Cargar resultados reales
-          </h1>
-          <p className="mt-4 max-w-2xl text-slate-400">
-            El admin puede cargar resultados, ver predicciones de participantes y recalcular
-            puntos.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+    <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
+      <PageHeader
+        overline="Sala de control · LIVE"
+        title="Panel admin"
+        description="Cada bloque se abre y cierra con click. Sólo el bloque activo se renderiza completo."
+        tone="magenta"
+        actions={
           <button
             type="button"
             onClick={() => void recalculatePoints()}
-            className="rounded-full bg-gradient-to-r from-emerald-300 to-lime-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
+            className="fc-cta-fifa"
           >
-            Recalcular puntos
+            <span aria-hidden>↻</span> Recalcular puntos
           </button>
-        </div>
-      </section>
+        }
+      />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
-        {[
-          [allMatches.length, "partidos"],
-          [loadedResults, "resultados cargados"],
-          [registeredUsers.length, "usuarios registrados"],
-        ].map(([value, label]) => (
-          <div key={label} className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-lg shadow-black/10">
-            <p className="text-4xl font-black text-white">{value}</p>
-            <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-400">{label}</p>
-          </div>
-        ))}
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi label="Partidos" value={allMatches.length} tone="neutral" />
+        <Kpi label="Resultados cargados" value={loadedResults} tone="lime" />
+        <Kpi label="Pendientes" value={pendingResults} tone={pendingResults > 0 ? "yellow" : "lime"} />
+        <Kpi label="Usuarios" value={registeredUsers.length} tone="cyan" />
       </div>
 
-      <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-              Resultados manuales
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">Filtrar partidos</h2>
-          </div>
-          <p className="text-sm text-slate-300">
-            Mostrando {filteredMatches.length} de {allMatches.length} partidos.
-          </p>
-        </div>
-        <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
-          {adminFilters.map((filter) => {
-            const isActive =
-              activeFilter.type === filter.type &&
-              (filter.type === "todos" ||
-                (activeFilter.type !== "todos" && activeFilter.value === filter.value));
+      <div className="space-y-3">
+        <AdminAccordion
+          id="payments"
+          title="Revisión de pagos"
+          description="Aprobá o rechazá las inscripciones que llegaron con comprobante."
+          badge={pendingPayments > 0 ? `${pendingPayments} pendientes` : "al día"}
+          badgeTone={pendingPayments > 0 ? "amber" : "emerald"}
+          meta="Inscripción $10.000"
+          isOpen={openSection === "payments"}
+          onToggle={() => toggleSection("payments")}
+          unmountWhenClosed
+        >
+          <AdminPaymentsSection
+            registeredUsers={registeredUsers}
+            onApprove={(idOrUsername) => void updatePaymentStatus(idOrUsername, "approved")}
+            onReject={(idOrUsername) => void updatePaymentStatus(idOrUsername, "rejected")}
+          />
+        </AdminAccordion>
 
-            return (
-              <button
-                key={filter.label}
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:-translate-y-0.5 ${
-                  isActive
-                    ? "bg-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/20"
-                    : "border border-white/10 bg-white/[0.05] text-slate-200 hover:border-white/20 hover:bg-white/10"
-                }`}
-              >
-                {filter.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+        <AdminAccordion
+          id="overrides"
+          title="Clasificados manuales"
+          description="Override del cálculo automático para fase eliminatoria."
+          badge={overridesCount > 0 ? `${overridesCount} activos` : "ninguno"}
+          badgeTone={overridesCount > 0 ? "amber" : "neutral"}
+          isOpen={openSection === "overrides"}
+          onToggle={() => toggleSection("overrides")}
+          unmountWhenClosed
+        >
+          <QualificationOverridesAdmin
+            results={results}
+            matches={matches}
+            overrides={overrides}
+            isReady={areOverridesReady}
+            error={overridesError}
+            adminUserId={user?.userId}
+            onSave={saveOverride}
+            onRemove={removeOverride}
+          />
+        </AdminAccordion>
 
-      <section className="mb-8 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-6 shadow-2xl shadow-black/20">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-              Usuarios registrados
-            </p>
-            <h2 className="mt-2 text-3xl font-black text-white">Revisión de pagos</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              Revisá los comprobantes enviados por los participantes y aprobá o rechazá cada
-              inscripción.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
-            Inscripción: $10.000
-          </div>
-        </div>
+        <AdminAccordion
+          id="bracket"
+          title="Fase eliminatoria"
+          description="Cargá goles directo sobre la fase eliminatoria; los equipos avanzan automáticamente."
+          badge="visual"
+          badgeTone="emerald"
+          isOpen={openSection === "bracket"}
+          onToggle={() => toggleSection("bracket")}
+          unmountWhenClosed
+        >
+          <KnockoutBracket
+            bracket={bracketLayout}
+            results={results}
+            predictions={{}}
+            savedPredictions={{}}
+            mode="admin"
+            canPredict={false}
+            onSaveResult={(matchId, score) => saveResult(matchId, score)}
+            onDeleteResult={(matchId) => deleteResult(matchId)}
+          />
+        </AdminAccordion>
 
-        <div className="mt-5 space-y-3">
-          {registeredUsers.length ? (
-            registeredUsers.map((registeredUser) => (
-              <div
-                key={registeredUser.username}
-                className="grid gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:-translate-y-0.5 hover:border-white/20 lg:grid-cols-[1fr_220px_auto] lg:items-center"
-              >
-                <div>
-                  <p className="text-lg font-black text-white">{registeredUser.displayName}</p>
-                  <p className="text-sm text-slate-300">Usuario: {registeredUser.username}</p>
-                  <p
-                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${
-                      registeredUser.paymentStatus === "approved"
-                        ? "bg-emerald-300/15 text-emerald-200"
-                        : registeredUser.paymentStatus === "rejected"
-                          ? "bg-red-300/15 text-red-200"
-                          : registeredUser.paymentStatus === "pending_review"
-                            ? "bg-cyan-300/15 text-cyan-200"
-                          : "bg-amber-300/15 text-amber-200"
-                    }`}
-                  >
-                    {registeredUser.paymentStatus === "approved"
-                      ? "Pago aprobado"
-                      : registeredUser.paymentStatus === "rejected"
-                        ? "Pago rechazado"
-                        : registeredUser.paymentStatus === "pending_review"
-                          ? "Pendiente de revisión"
-                          : "Sin comprobante"}
-                  </p>
-                  {registeredUser.paymentProof ? (
-                    <p className="mt-2 text-sm font-bold text-emerald-100">
-                      Comprobante cargado: {registeredUser.paymentProof.fileName}
-                    </p>
-                  ) : null}
-                  {registeredUser.paymentProof?.uploadedAt ? (
-                    <p className="mt-2 text-xs text-slate-400">
-                      Enviado: {new Date(registeredUser.paymentProof.uploadedAt).toLocaleString()} ·{" "}
-                      {(registeredUser.paymentProof.fileSize / 1024).toFixed(0)} KB
-                    </p>
-                  ) : null}
-                </div>
-                {registeredUser.paymentProof ? (
-                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
-                    <p className="font-black">Comprobante recibido</p>
-                    <p className="mt-1 break-all text-emerald-50">{registeredUser.paymentProof.fileName}</p>
-                    <p className="mt-1 text-xs text-emerald-100/80">
-                      {registeredUser.paymentProof.fileType}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-                    Sin comprobante cargado
-                  </div>
-                )}
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void updatePaymentStatus(
-                        registeredUser.id ?? registeredUser.username,
-                        "approved",
-                      )
-                    }
-                    className="rounded-full bg-emerald-300 px-5 py-2 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
-                  >
-                    Aprobar pago
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void updatePaymentStatus(
-                        registeredUser.id ?? registeredUser.username,
-                        "rejected",
-                      )
-                    }
-                    className="rounded-full border border-red-300/30 bg-red-300/10 px-5 py-2 text-sm font-bold text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15"
-                  >
-                    Rechazar pago
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-slate-300">
-              Todavía no hay usuarios registrados desde la página de registro.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <div className="mb-5">
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-            Carga manual
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-white">Resultados de partidos</h2>
-          <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            Esta grilla es solo para cargar, editar o borrar resultados reales. El admin no carga
-            predicciones desde este panel.
-          </p>
-        </div>
-        <div className="grid gap-5 lg:grid-cols-2">
-          {filteredMatches.map((match) => {
-            const hasSavedResult = Boolean(parseScore(results[match.id]));
-            const isEditing = editingResults[match.id] ?? !hasSavedResult;
-
-            return (
-              <AdminResultCard
-                key={match.id}
-                match={match}
-                result={isEditing ? resultDrafts[match.id] ?? results[match.id] : results[match.id]}
-                canEditResult={isEditing}
-                hasSavedResult={hasSavedResult}
-                onResultChange={(side, value) => updateResultDraft(match.id, side, value)}
-                onSaveResult={() => handleSaveResult(match.id)}
-                onEditResult={() => handleEditResult(match.id)}
-                onDeleteResult={() => handleDeleteResult(match.id)}
-              />
-            );
-          })}
-        </div>
-      </section>
-
+        <AdminAccordion
+          id="results"
+          title="Resultados de grupos"
+          description="Cargá, edita o borra resultados de Fecha 1, 2 y 3."
+          badge={pendingGroupResults > 0 ? `${pendingGroupResults} pendientes` : "completo"}
+          badgeTone={pendingGroupResults > 0 ? "amber" : "emerald"}
+          meta={`${loadedGroupResults}/${matches.length} cargados`}
+          isOpen={openSection === "results"}
+          onToggle={() => toggleSection("results")}
+          unmountWhenClosed
+        >
+          <AdminResultsSection
+            groupMatches={matches}
+            results={results}
+            resultDrafts={resultDrafts}
+            editingResults={editingResults}
+            onResultChange={updateResultDraft}
+            onSaveResult={handleSaveResult}
+            onEditResult={handleEditResult}
+            onDeleteResult={handleDeleteResult}
+          />
+        </AdminAccordion>
+      </div>
     </main>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "neutral" | "lime" | "yellow" | "cyan";
+}) {
+  const palette = {
+    lime: { border: "border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/[0.06]", color: "text-[var(--fc-lime)]" },
+    yellow: { border: "border-[var(--fc-yellow)]/30 bg-[var(--fc-yellow)]/[0.06]", color: "text-[var(--fc-yellow)]" },
+    cyan: { border: "border-[var(--fc-cyan)]/30 bg-[var(--fc-cyan)]/[0.06]", color: "text-[var(--fc-cyan)]" },
+    neutral: { border: "border-white/[0.07] bg-white/[0.03]", color: "text-white" },
+  }[tone];
+
+  return (
+    <div className={`fc-broadcast-cut-sm relative flex flex-col gap-1 overflow-hidden border p-4 ${palette.border}`}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
+      <div className="relative flex items-center gap-2">
+        <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${palette.color.replace("text-", "bg-")}`} />
+        <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-400">
+          {label}
+        </p>
+      </div>
+      <p className={`fc-stencil relative text-3xl ${palette.color}`}>{value}</p>
+    </div>
   );
 }
 
 function AccessCard({ title, href, label }: { title: string; href: string; label: string }) {
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-16 sm:px-6 lg:px-8">
-      <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 text-center shadow-2xl shadow-black/20">
-        <h1 className="text-3xl font-black text-white">{title}</h1>
-        <Link
-          href={href}
-          className="mt-6 inline-flex rounded-full bg-emerald-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
-        >
-          {label}
+      <div className="fc-card p-8 text-center">
+        <h1 className="fc-display-italic text-3xl uppercase tracking-[0.02em] text-white">{title}</h1>
+        <Link href={href} className="fc-cta-fifa mt-6">
+          <span aria-hidden>▸</span> {label}
         </Link>
       </div>
     </main>

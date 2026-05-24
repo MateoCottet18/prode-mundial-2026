@@ -16,7 +16,7 @@ type AdminLoadedResultCardProps = {
 
 /**
  * Card de solo lectura para el perfil del admin: partido con resultado cargado.
- * Muestra fecha, equipos con banderas, marcador final y estado del partido.
+ * Estética "broadcast" alineada con MatchCard / AdminResultCard.
  */
 export function AdminLoadedResultCard({
   match,
@@ -28,45 +28,61 @@ export function AdminLoadedResultCard({
   const kickoff = parseMatchKickoff(match);
 
   return (
-    <article className="flex h-full flex-col rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.03] p-5 shadow-lg shadow-black/10">
-      <header className="flex flex-wrap items-center justify-between gap-2 text-xs">
+    <article className="fc-card fc-card-accent flex h-full flex-col p-5 transition hover:-translate-y-0.5">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-white/10 px-3 py-1 font-semibold text-slate-200">
+          <span className="fc-display rounded-md bg-white/[0.08] px-2.5 py-1 text-[0.7rem] uppercase tracking-[0.16em] text-slate-100">
             {match.group}
           </span>
-          <span className="rounded-full bg-emerald-300/10 px-3 py-1 font-semibold text-emerald-100">
+          <span className="fc-display rounded-md border border-emerald-300/30 bg-emerald-300/10 px-2.5 py-1 text-[0.7rem] uppercase tracking-[0.16em] text-emerald-100">
             {match.matchday ? `Fecha ${match.matchday}` : stageLabel(match.stage)}
           </span>
         </div>
         <StatusBadge status={status} />
       </header>
 
-      <div className="mt-4 text-xs text-slate-400">
-        {match.date} · {match.time} · {match.city}
-        {kickoff ? (
-          <span className="ml-1 text-slate-500">
-            ({kickoff.toLocaleString("es-AR", {
-              dateStyle: "short",
-              timeStyle: "short",
-            })} hora local)
+      <div className="mt-3 flex items-center gap-2 text-[0.7rem] text-slate-400">
+        <span aria-hidden className="h-1 w-1 rounded-full bg-emerald-300/60" />
+        <span className="fc-display tracking-[0.1em]">
+          {match.date.toUpperCase()} · {match.time}
+        </span>
+        <span className="text-slate-500">·</span>
+        <span className="truncate">{match.city}</span>
+      </div>
+      {kickoff ? (
+        <p className="mt-1 text-[0.65rem] uppercase tracking-[0.16em] text-slate-500">
+          {kickoff.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })} local
+        </p>
+      ) : null}
+
+      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-white/[0.06] bg-slate-950/55 px-4 py-4">
+        <div className="min-w-0">
+          <CountryWithFlag name={match.homeTeam} size={26} truncate />
+        </div>
+        <div className="flex flex-col items-center">
+          <p className="fc-display text-[2.4rem] leading-none text-white tabular-nums">
+            {parsed ? (
+              <>
+                {parsed.home}
+                <span className="px-1 text-slate-500">:</span>
+                {parsed.away}
+              </>
+            ) : (
+              <span className="text-slate-600">–</span>
+            )}
+          </p>
+          <span className="fc-display mt-1 text-[0.6rem] uppercase tracking-[0.22em] text-emerald-200">
+            {parsed ? "Final" : "vs"}
           </span>
-        ) : null}
+        </div>
+        <div className="min-w-0 text-right">
+          <CountryWithFlag name={match.awayTeam} size={26} alignRight truncate />
+        </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-white">
-        <CountryWithFlag name={match.homeTeam} size={22} truncate />
-        <span className="text-xs font-black text-slate-400">VS</span>
-        <CountryWithFlag name={match.awayTeam} size={22} alignRight truncate />
-      </div>
-
-      <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-center">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-200/80">
-          Marcador final
-        </p>
-        <p className="mt-1 font-mono text-3xl font-black text-white">
-          {parsed ? `${parsed.home} – ${parsed.away}` : "—"}
-        </p>
-      </div>
+      <p className="mt-auto pt-4 text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
+        {match.venue}
+      </p>
     </article>
   );
 }
@@ -85,10 +101,20 @@ function StatusBadge({
           ? "border-red-300/40 bg-red-300/15 text-red-100"
           : "border-white/15 bg-white/[0.06] text-slate-200";
 
+  const dot =
+    status === "finalizado"
+      ? "bg-emerald-300"
+      : status === "en_curso"
+        ? "bg-yellow-300 fc-pulse-dot"
+        : status === "vencido_sin_resultado"
+          ? "bg-red-300 fc-pulse-dot"
+          : "bg-slate-500";
+
   return (
     <span
-      className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ${tone}`}
+      className={`fc-display inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.65rem] uppercase tracking-[0.16em] ${tone}`}
     >
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       {matchStatusLabel(status)}
     </span>
   );

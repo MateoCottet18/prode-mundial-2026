@@ -31,7 +31,7 @@ create table if not exists public.profiles (
   email text not null unique,
   username text not null unique,
   role text not null default 'participante',
-  payment_status text not null default 'pending_review',
+  payment_status text not null default 'pending',
   created_at timestamptz not null default now()
 );
 
@@ -44,6 +44,11 @@ alter table public.profiles drop constraint if exists profiles_payment_status_ch
 alter table public.profiles
   add constraint profiles_payment_status_check
   check (payment_status in ('pending', 'pending_review', 'approved', 'rejected'));
+
+-- Default histórico era 'pending_review' (incorrecto: el usuario nuevo no tiene
+-- comprobante todavía). Lo bajamos a 'pending'. La migración de filas vivas
+-- corre al final del archivo, una vez que public.payments ya existe.
+alter table public.profiles alter column payment_status set default 'pending';
 
 -- ---------------------------------------------------------------------------
 -- predictions
@@ -89,12 +94,16 @@ alter table public.results drop constraint if exists results_match_id_fkey;
 -- ---------------------------------------------------------------------------
 -- payments
 -- ---------------------------------------------------------------------------
+-- Flujo nuevo: el usuario declara `payer_name` (nombre de quien hizo la
+-- transferencia) y aprieta "Ya pagué". Las columnas `file_*` y `storage_path`
+-- son legacy y quedan nullables para no romper filas con comprobante histórico.
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
-  file_name text not null,
-  file_size bigint not null,
-  file_type text not null,
+  payer_name text,
+  file_name text,
+  file_size bigint,
+  file_type text,
   storage_path text,
   status text not null default 'pending_review'
     check (status in ('pending', 'pending_review', 'approved', 'rejected')),
@@ -102,6 +111,15 @@ create table if not exists public.payments (
   reviewed_at timestamptz,
   uploaded_at timestamptz not null default now()
 );
+
+-- Migración para tablas viejas: agrega payer_name y afloja file_* a nullable.
+alter table public.payments add column if not exists payer_name text;
+alter table public.payments alter column file_name drop not null;
+alter table public.payments alter column file_size drop not null;
+alter table public.payments alter column file_type drop not null;
+
+create index if not exists payments_user_id_uploaded_at_desc_idx
+  on public.payments (user_id, uploaded_at desc);
 
 -- ---------------------------------------------------------------------------
 -- Trigger genérico para mantener updated_at coherente
@@ -206,6 +224,7 @@ create policy "only admin manages results"
 -- (user_id, points), por lo que dejamos la columna libre y la sensibilidad
 -- queda en que la app no expone goles por partido al UI público.
 drop policy if exists "users can view own predictions and admin can view all" on public.predictions;
+drop policy if exists "anyone can read predictions for ranking" on public.predictions;
 create policy "anyone can read predictions for ranking"
   on public.predictions for select
   using (true);
@@ -216,6 +235,7 @@ create policy "users can insert own predictions"
   with check (auth.uid() = user_id);
 
 drop policy if exists "users can update own predictions" on public.predictions;
+drop policy if exists "users can update own predictions or admin recalcs" on public.predictions;
 create policy "users can update own predictions or admin recalcs"
   on public.predictions for update
   using (auth.uid() = user_id or public.is_admin())
@@ -270,3 +290,17 @@ create policy "user can read own receipts"
       or public.is_admin()
     )
   );
+
+-- ---------------------------------------------------------------------------
+-- Migración de profiles antiguos:
+-- antes el default de payment_status era 'pending_review', así que muchos
+-- profiles quedaron en ese estado SIN haber subido nada a public.payments.
+-- Eso hacía que /pago mostrara "Tu comprobante ya fue enviado" antes de
+-- adjuntar nada. Los devolvemos a 'pending'.
+-- ---------------------------------------------------------------------------
+update public.profiles p
+   set payment_status = 'pending'
+ where payment_status = 'pending_review'
+   and not exists (
+     select 1 from public.payments x where x.user_id = p.id
+   );

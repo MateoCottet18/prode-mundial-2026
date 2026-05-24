@@ -2,217 +2,281 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { groupNames, matches, type GroupName, type Stage } from "@/data/matches";
+import { KnockoutBracket } from "@/components/bracket/KnockoutBracket";
+import { PageHeader } from "@/components/PageHeader";
+import { groupNames, type GroupName } from "@/data/matches";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
+import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
+import { buildBracket } from "@/lib/bracket/buildBracket";
 import { parseScore } from "@/lib/prode";
-import { getGroupStandings, getKnockoutMatches, getThirdPlacedTeams } from "@/lib/standings";
+import { getGroupStandings, getThirdPlacedTeams } from "@/lib/standings";
 
-type ResultFilter =
-  | { type: "grupo"; value: GroupName }
-  | { type: "fase"; value: Exclude<Stage, "grupos"> };
+/**
+ * Filtros aceptados:
+ *  - "grupo"        → muestra cards tradicionales por grupo (sólo partidos
+ *                     con resultado cargado).
+ *  - "eliminatoria" → muestra el bracket completo en modo read-only.
+ *
+ * 16avos/octavos/cuartos/semi/final ya no son filtros sueltos: viven dentro
+ * de la única vista "Fase eliminatoria".
+ */
+type ResultFilter = { type: "grupo"; value: GroupName } | { type: "eliminatoria" };
 
 const filters: ResultFilter[] = [
   ...groupNames.map((group) => ({ type: "grupo" as const, value: group })),
-  { type: "fase", value: "16avos" },
-  { type: "fase", value: "octavos" },
-  { type: "fase", value: "cuartos" },
-  { type: "fase", value: "semifinal" },
-  { type: "fase", value: "final" },
+  { type: "eliminatoria" },
 ];
 
 export default function ResultadosPage() {
   const { user, isReady: isAuthReady } = useAuth();
+  const { matches } = useMatches();
   const { results } = useProdeStore();
+  const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<ResultFilter>({
     type: "grupo",
     value: "Grupo A",
   });
-  const standings = useMemo(() => getGroupStandings(results), [results]);
+  const standings = useMemo(
+    () => getGroupStandings(results, matches),
+    [results, matches],
+  );
   const bestThirds = useMemo(() => getThirdPlacedTeams(standings), [standings]);
-  const knockoutMatches = useMemo(() => getKnockoutMatches(results), [results]);
-  const visibleMatches = useMemo(() => {
-    const source =
-      activeFilter.type === "grupo"
-        ? matches.filter((match) => match.group === activeFilter.value)
-        : knockoutMatches[activeFilter.value];
-
-    return source.filter((match) => parseScore(results[match.id]));
-  }, [activeFilter, knockoutMatches, results]);
+  const bracket = useMemo(
+    () => buildBracket(results, matches, overridesMap),
+    [results, matches, overridesMap],
+  );
+  const visibleGroupMatches = useMemo(() => {
+    if (activeFilter.type !== "grupo") return [];
+    return matches
+      .filter((match) => match.group === activeFilter.value)
+      .filter((match) => parseScore(results[match.id]));
+  }, [activeFilter, results, matches]);
 
   if (isAuthReady && !user) {
     return (
       <main className="mx-auto w-full max-w-4xl px-5 py-16 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 text-center shadow-2xl shadow-black/20">
-          <h1 className="text-3xl font-black text-white">Iniciá sesión para ver resultados</h1>
-          <Link
-            href="/login"
-            className="mt-6 inline-flex rounded-full bg-emerald-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5"
-          >
-            Ir al login
+        <div className="fc-card p-8 text-center">
+          <h1 className="fc-display-italic text-3xl uppercase tracking-[0.02em] text-white">
+            Iniciá sesión para ver resultados
+          </h1>
+          <Link href="/login" className="fc-cta-fifa mt-6">
+            <span aria-hidden>▸</span> Ir al login
           </Link>
         </div>
       </main>
     );
   }
 
+  const isEliminatoria = activeFilter.type === "eliminatoria";
+
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
-      <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-        <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-200">
-          Resultados
-        </p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-          Resultados reales y tablas de grupos
-        </h1>
-        <p className="mt-4 max-w-2xl text-slate-300">
-          Acá se ven solo los partidos con resultado cargado y las posiciones reales del
-          Mundial calculadas automáticamente.
-        </p>
-      </section>
+      <PageHeader
+        overline="Resultados oficiales"
+        title="Marcadores y tablas reales"
+        description="Por grupo se ven los partidos con marcador cargado y la tabla real. La Fase eliminatoria muestra la llave dinámica desde 16avos hasta la final + 3°."
+        tone="cyan"
+      />
 
       <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
         {filters.map((filter) => {
-          const label = filter.type === "grupo" ? filter.value : stageLabel(filter.value);
+          const label = filter.type === "grupo" ? filter.value : "Fase eliminatoria";
           const isActive =
-            activeFilter.type === filter.type && activeFilter.value === filter.value;
+            activeFilter.type === filter.type &&
+            (filter.type === "eliminatoria" ||
+              (activeFilter.type === "grupo" && activeFilter.value === filter.value));
+          const key = filter.type === "grupo" ? `grupo-${filter.value}` : "eliminatoria";
 
           return (
             <button
-              key={`${filter.type}-${filter.value}`}
+              key={key}
               type="button"
               onClick={() => setActiveFilter(filter)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
+              className={`fc-broadcast-cut-sm fc-display-italic shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[0.78rem] uppercase tracking-[0.14em] transition hover:-translate-y-0.5 ${
                 isActive
-                  ? "bg-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/20"
-                  : "border border-white/10 bg-white/[0.08] text-slate-200 hover:-translate-y-0.5 hover:bg-white/15 hover:text-white"
+                  ? "bg-[var(--fc-cyan)] text-slate-950 shadow-[0_0_24px_rgba(56,212,255,0.45)]"
+                  : "border border-white/[0.07] bg-white/[0.025] text-slate-300 hover:border-[var(--fc-cyan)]/30 hover:bg-[var(--fc-cyan)]/[0.08] hover:text-white"
               }`}
             >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  isActive ? "bg-slate-950" : "bg-white/25"
+                }`}
+              />
               {label}
             </button>
           );
         })}
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
-        <section>
-          <h2 className="mb-4 text-2xl font-black text-white">Partidos jugados</h2>
-          <div className="space-y-4">
-            {visibleMatches.length ? (
-              visibleMatches.map((match) => {
-                const score = parseScore(results[match.id]);
+      {isEliminatoria ? (
+        <KnockoutBracket
+          bracket={bracket}
+          results={results}
+          predictions={{}}
+          savedPredictions={{}}
+          mode="view"
+          canPredict={false}
+        />
+      ) : (
+        <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+          <section>
+            <h2 className="mb-4 fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+              <span className="text-[var(--fc-cyan)]">▸</span> Partidos jugados
+            </h2>
+            <div className="space-y-4">
+              {visibleGroupMatches.length ? (
+                visibleGroupMatches.map((match) => {
+                  const score = parseScore(results[match.id]);
+                  return (
+                    <article
+                      key={match.id}
+                      className="fc-card fc-card-accent relative overflow-hidden p-5 transition hover:-translate-y-0.5"
+                    >
+                      <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
+                      <div className="relative flex flex-wrap items-center justify-between gap-3">
+                        <span className="fc-chip fc-chip-neutral">
+                          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
+                          {match.group} {match.matchday ? `· F${match.matchday}` : ""}
+                        </span>
+                        <span className="fc-display-italic text-[0.7rem] uppercase tracking-[0.18em] text-slate-400">
+                          {match.date}
+                        </span>
+                      </div>
+                      <div className="fc-broadcast-cut-sm relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border border-white/[0.06] bg-[#02050b]/85 px-4 py-4">
+                        <p className="fc-display-italic text-base uppercase tracking-[0.04em] text-white">
+                          {match.homeTeam}
+                        </p>
+                        <p className="fc-stencil text-3xl text-white">
+                          {score?.home}
+                          <span className="px-1 text-[var(--fc-lime)]">:</span>
+                          {score?.away}
+                        </p>
+                        <p className="fc-display-italic text-right text-base uppercase tracking-[0.04em] text-white">
+                          {match.awayTeam}
+                        </p>
+                      </div>
+                      <p className="relative mt-3 fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-500">
+                        {match.venue} · {match.city}
+                      </p>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="fc-card p-6 text-slate-300">
+                  Todavía no hay resultados cargados para este grupo.
+                </div>
+              )}
+            </div>
+          </section>
 
-                return (
-                  <article
-                    key={match.id}
-                    className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-5 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:border-emerald-300/25"
+          <section>
+            <article className="fc-card fc-card-accent relative mb-6 overflow-hidden p-5">
+              <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
+              <h2 className="relative fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+                <span className="text-[var(--fc-lime)]">▸</span> Clasificados
+              </h2>
+              <p className="relative mt-2 text-sm text-slate-300">
+                Se muestran cuando cada grupo tiene sus 3 fechas cargadas.
+              </p>
+              <div className="relative mt-4 grid gap-3 md:grid-cols-2">
+                {groupNames.map((group) => (
+                  <div
+                    key={group}
+                    className="fc-broadcast-cut-sm border border-white/[0.07] bg-[#02050b]/65 p-4"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="font-bold text-emerald-200">
-                        {match.group} {match.matchday ? `· Fecha ${match.matchday}` : ""}
-                      </p>
-                      <p className="text-sm text-slate-300">{match.date}</p>
-                    </div>
-                    <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                      <p className="text-lg font-black">{match.homeTeam}</p>
-                      <p className="rounded-2xl bg-slate-950/70 px-4 py-2 text-2xl font-black text-lime-200">
-                        {score?.home} - {score?.away}
-                      </p>
-                      <p className="text-right text-lg font-black">{match.awayTeam}</p>
-                    </div>
-                    <p className="mt-3 text-sm text-slate-400">
-                      {match.venue} · {match.city}
+                    <p className="fc-display-italic text-sm uppercase tracking-[0.18em] text-[var(--fc-lime)]">
+                      {group}
                     </p>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 text-slate-300">
-                Todavía no hay resultados cargados para este filtro.
+                    <p className="mt-2 text-sm text-slate-200">
+                      <span className="fc-stencil text-[var(--fc-lime)]">1°</span>{" "}
+                      {standings[group][0]?.played === 3
+                        ? standings[group][0].team
+                        : "Se define al completar el grupo"}
+                    </p>
+                    <p className="text-sm text-slate-200">
+                      <span className="fc-stencil text-slate-300">2°</span>{" "}
+                      {standings[group][1]?.played === 3
+                        ? standings[group][1].team
+                        : "Se define al completar el grupo"}
+                    </p>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        </section>
+              <div className="fc-broadcast-cut-sm relative mt-4 border border-[var(--fc-yellow)]/25 bg-[var(--fc-yellow)]/[0.06] p-4">
+                <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-[var(--fc-yellow)]">
+                  Mejores terceros
+                </p>
+                <p className="mt-1 text-sm text-slate-200">
+                  {bestThirds.length
+                    ? bestThirds.map((team) => `${team.team} (${team.group})`).join(" · ")
+                    : "Pendiente de resultados completos"}
+                </p>
+              </div>
+            </article>
 
-        <section>
-          <div className="mb-6 rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.075] to-white/[0.035] p-5 shadow-lg shadow-black/10">
-            <h2 className="text-2xl font-black text-white">Clasificados</h2>
-            <p className="mt-2 text-sm text-slate-300">
-              Se muestran cuando cada grupo tiene sus 3 fechas cargadas.
-            </p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <h2 className="mb-4 fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+              <span className="text-[var(--fc-cyan)]">▸</span> Tabla real por grupo
+            </h2>
+            <div className="space-y-6">
               {groupNames.map((group) => (
-                <div key={group} className="rounded-2xl bg-slate-950/60 p-4">
-                  <p className="font-bold text-emerald-200">{group}</p>
-                  <p className="mt-2 text-sm text-slate-200">
-                    1° {standings[group][0]?.played === 3 ? standings[group][0].team : "Se define al completar el grupo"}
-                  </p>
-                  <p className="text-sm text-slate-200">
-                    2° {standings[group][1]?.played === 3 ? standings[group][1].team : "Se define al completar el grupo"}
-                  </p>
+                <div key={group} className="fc-card overflow-hidden">
+                  <h3 className="fc-display-italic flex items-center gap-2 border-b border-white/[0.07] bg-[#02050b]/65 px-4 py-3 text-sm uppercase tracking-[0.18em] text-[var(--fc-lime)]">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
+                    {group}
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-left text-sm tabular-nums">
+                      <thead>
+                        <tr className="border-b border-white/[0.07] text-slate-300">
+                          {["Equipo", "PJ", "G", "E", "P", "GF", "GC", "DG", "Pts"].map((header) => (
+                            <th
+                              key={header}
+                              className="fc-display-italic px-4 py-3 text-[0.7rem] uppercase tracking-[0.18em]"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings[group].map((team, idx) => (
+                          <tr
+                            key={team.team}
+                            className={`border-b border-white/5 last:border-0 transition hover:bg-white/[0.025] ${
+                              idx < 2 ? "bg-[var(--fc-lime)]/[0.04]" : ""
+                            }`}
+                          >
+                            <td className="fc-display-italic px-4 py-3 uppercase tracking-[0.04em] text-white">
+                              {idx < 2 ? (
+                                <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
+                              ) : null}
+                              {team.team}
+                            </td>
+                            <td className="px-4 py-3 text-slate-200">{team.played}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.won}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.drawn}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.lost}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.goalsFor}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.goalsAgainst}</td>
+                            <td className="px-4 py-3 text-slate-200">{team.goalDifference}</td>
+                            <td className="fc-stencil px-4 py-3 text-[var(--fc-lime)]">
+                              {team.points}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl bg-slate-950/60 p-4">
-              <p className="font-bold text-emerald-200">Mejores terceros</p>
-              <p className="mt-2 text-sm text-slate-200">
-                {bestThirds.length
-                  ? bestThirds.map((team) => `${team.team} (${team.group})`).join(" · ")
-                  : "Pendiente de resultados completos"}
-              </p>
-            </div>
-          </div>
-
-          <h2 className="mb-4 text-2xl font-black text-white">Tabla real por grupo</h2>
-          <div className="space-y-6">
-            {groupNames.map((group) => (
-              <div key={group} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.06] shadow-lg shadow-black/10">
-                <h3 className="bg-slate-950/70 px-4 py-3 font-black text-emerald-200">{group}</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[680px] text-left text-sm">
-                    <thead className="text-slate-300">
-                      <tr className="border-b border-white/10">
-                        {["Equipo", "PJ", "G", "E", "P", "GF", "GC", "DG", "Pts"].map((header) => (
-                          <th key={header} className="px-4 py-3 font-bold">
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {standings[group].map((team) => (
-                        <tr key={team.team} className="border-b border-white/5 last:border-0">
-                          <td className="px-4 py-3 font-bold text-white">{team.team}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.played}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.won}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.drawn}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.lost}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.goalsFor}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.goalsAgainst}</td>
-                          <td className="px-4 py-3 text-slate-200">{team.goalDifference}</td>
-                          <td className="px-4 py-3 font-black text-lime-200">{team.points}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+          </section>
+        </div>
+      )}
     </main>
   );
-}
-
-function stageLabel(stage: Exclude<Stage, "grupos">) {
-  const labels = {
-    "16avos": "16avos",
-    octavos: "Octavos",
-    cuartos: "Cuartos",
-    semifinal: "Semifinal",
-    final: "Final",
-  };
-
-  return labels[stage];
 }

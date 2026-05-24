@@ -1,8 +1,50 @@
 @import "tailwindcss";
 
+/* =============================================================================
+ * SISTEMA VISUAL "FIFA BROADCAST 2026"
+ *
+ * Inspiraciones: branding FIFA World Cup 2026, lower-thirds televisivos,
+ * álbum Panini, gráficas oficiales de transmisión, scoreboards LED de
+ * estadio, posters de torneo internacional.
+ *
+ * Decisiones clave:
+ * - Paleta torneo: lime FIFA, magenta, naranja, amarillo, cyan + verde
+ *   esmeralda heredado. Los acentos magenta/orange/yellow son SOLO para
+ *   branding/decoración (franjas, headers, tickers, hero). El verde sigue
+ *   siendo "ok", cyan = predicción, rojo = error/eliminado, ámbar = warning.
+ * - Tipografía: Oswald muy condensed para titulares, italic para hero/
+ *   scoreboards, tracking ancho en overlines tipo lower-third.
+ * - Cortes: usamos `clip-path` con esquinas en diagonal para evitar la
+ *   sensación SaaS (todo border-radius). Cards funcionales mantienen radius
+ *   para legibilidad, pero las decoraciones / tags / hero usan cortes
+ *   poligonales tipo "FIFA gráfica TV".
+ * - Texturas: halftone, diagonal fina, pitch-grid, ticker con keyframes.
+ * ============================================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #04060c;
+  --foreground: #f4f6fa;
+
+  /* Pitch / dark stage */
+  --fc-bg-deep: #02040a;
+  --fc-bg-mid: #050912;
+  --fc-bg-hi: #0a0f1c;
+  --pitch-line: rgba(212, 255, 63, 0.05);
+  --pitch-line-strong: rgba(212, 255, 63, 0.12);
+  --stadium-glow: rgba(34, 197, 94, 0.18);
+
+  /* Palette FIFA 2026 (acentos broadcast) */
+  --fc-lime: #d4ff3f; /* CTA principal / branding */
+  --fc-lime-soft: #b8f038;
+  --fc-emerald: #22c55e; /* OK / ranking */
+  --fc-magenta: #ff2d6f; /* alerta / branding rojo torneo */
+  --fc-orange: #ff8a3d; /* highlight cálido */
+  --fc-yellow: #ffd84d; /* podio / amarillo trofeo */
+  --fc-cyan: #38d4ff; /* predicción / data */
+  --fc-purple: #a855f7;
+
+  /* Sombra / borde tipo broadcast */
+  --fc-stripe-rgba: 212, 255, 63;
 }
 
 @theme inline {
@@ -10,17 +52,549 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
+  --font-display: var(--font-oswald);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-fc-lime: var(--fc-lime);
+  --color-fc-lime-soft: var(--fc-lime-soft);
+  --color-fc-emerald: var(--fc-emerald);
+  --color-fc-magenta: var(--fc-magenta);
+  --color-fc-orange: var(--fc-orange);
+  --color-fc-yellow: var(--fc-yellow);
+  --color-fc-cyan: var(--fc-cyan);
+  --color-fc-purple: var(--fc-purple);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* -----------------------------------------------------------------------------
+ * Tabular nums en TODO número
+ * --------------------------------------------------------------------------- */
+.tabular,
+.tabular-nums,
+[data-numeric],
+.fc-score,
+.fc-rank,
+.fc-kpi-value,
+.fc-stencil {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------------
+ * Tipografía broadcast
+ *   .fc-display       → titulares condensed (Oswald 700)
+ *   .fc-display-italic → variante italic agresiva tipo poster FIFA
+ *   .fc-overline       → micro-labels con tracking ancho (lower-third)
+ *   .fc-headline-mega  → hero principal, italic, condensed, MEGA
+ *   .fc-stencil        → números mega para scoreboards (Oswald 700 italic)
+ * --------------------------------------------------------------------------- */
+.fc-display {
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.fc-display-italic {
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.005em;
+}
+
+.fc-overline {
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.fc-headline-mega {
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.04),
+    0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.fc-stencil {
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Texto outline con relleno fino — para títulos secundarios decorativos */
+.fc-text-outline {
+  -webkit-text-stroke: 1.5px rgba(212, 255, 63, 0.7);
+  color: transparent;
+  text-shadow: 0 0 24px rgba(212, 255, 63, 0.15);
+}
+
+/* -----------------------------------------------------------------------------
+ * Card base "broadcast"
+ * --------------------------------------------------------------------------- */
+.fc-card {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.015) 60%,
+      rgba(34, 197, 94, 0.04) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 40px -22px rgba(0, 0, 0, 0.6);
+}
+
+/* Variante con barra LED multicolor (FIFA stripe) */
+.fc-card-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 1.25rem auto 1.25rem;
+  top: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 45, 111, 0.6) 18%,
+    rgba(255, 138, 61, 0.6) 38%,
+    rgba(212, 255, 63, 0.85) 58%,
+    rgba(56, 212, 255, 0.6) 80%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+/* Card con notch / corner cut tipo gráfica TV. Usar SOLO en decoración:
+   contenedores de hero, tags, badges, banners. NO en cards funcionales que
+   usan border-radius para legibilidad / hover. */
+.fc-broadcast-cut {
+  clip-path: polygon(
+    16px 0,
+    100% 0,
+    100% calc(100% - 16px),
+    calc(100% - 16px) 100%,
+    0 100%,
+    0 16px
+  );
+}
+
+.fc-broadcast-cut-sm {
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%,
+    0 8px
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * Banda FIFA stripe — multicolor horizontal o vertical.
+ * Inspirada en los lateral bars de FIFA 26 (rojo / naranja / lima / cyan).
+ * --------------------------------------------------------------------------- */
+.fc-flag-stripe {
+  background: linear-gradient(
+    90deg,
+    var(--fc-magenta) 0%,
+    var(--fc-magenta) 22%,
+    var(--fc-orange) 22%,
+    var(--fc-orange) 42%,
+    var(--fc-yellow) 42%,
+    var(--fc-yellow) 60%,
+    var(--fc-lime) 60%,
+    var(--fc-lime) 80%,
+    var(--fc-cyan) 80%,
+    var(--fc-cyan) 100%
+  );
+}
+
+.fc-flag-stripe-soft {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 45, 111, 0.85) 0%,
+    rgba(255, 45, 111, 0.85) 22%,
+    rgba(255, 138, 61, 0.85) 22%,
+    rgba(255, 138, 61, 0.85) 42%,
+    rgba(255, 216, 77, 0.85) 42%,
+    rgba(255, 216, 77, 0.85) 60%,
+    rgba(212, 255, 63, 0.95) 60%,
+    rgba(212, 255, 63, 0.95) 80%,
+    rgba(56, 212, 255, 0.85) 80%,
+    rgba(56, 212, 255, 0.85) 100%
+  );
+}
+
+.fc-flag-stripe-vertical {
+  background: linear-gradient(
+    180deg,
+    var(--fc-magenta) 0%,
+    var(--fc-magenta) 22%,
+    var(--fc-orange) 22%,
+    var(--fc-orange) 42%,
+    var(--fc-yellow) 42%,
+    var(--fc-yellow) 60%,
+    var(--fc-lime) 60%,
+    var(--fc-lime) 80%,
+    var(--fc-cyan) 80%,
+    var(--fc-cyan) 100%
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * Pitch grid (líneas tipo cancha) — fondo global
+ * --------------------------------------------------------------------------- */
+.fc-pitch-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      var(--pitch-line) 0,
+      var(--pitch-line) 1px,
+      transparent 1px,
+      transparent 80px
+    ),
+    linear-gradient(
+      to bottom,
+      var(--pitch-line) 0,
+      var(--pitch-line) 1px,
+      transparent 1px,
+      transparent 80px
+    );
+  background-position: 0 0, 0 0;
+  mask-image: radial-gradient(circle at 50% 30%, black 0%, transparent 75%);
+}
+
+/* -----------------------------------------------------------------------------
+ * Diagonales finas
+ * --------------------------------------------------------------------------- */
+.fc-diagonal {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.025) 0,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 14px
+  );
+}
+
+.fc-diagonal-bold {
+  background-image: repeating-linear-gradient(
+    -55deg,
+    rgba(212, 255, 63, 0.06) 0,
+    rgba(212, 255, 63, 0.06) 2px,
+    transparent 2px,
+    transparent 22px
+  );
+}
+
+/* -----------------------------------------------------------------------------
+ * Halftone / dot grid — textura de impresión deportiva
+ * --------------------------------------------------------------------------- */
+.fc-halftone {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.1) 1px,
+    transparent 1px
+  );
+  background-size: 12px 12px;
+  background-position: 0 0;
+  mask-image: linear-gradient(180deg, black, transparent 70%);
+}
+
+.fc-halftone-lime {
+  background-image: radial-gradient(
+    rgba(212, 255, 63, 0.18) 1.2px,
+    transparent 1.2px
+  );
+  background-size: 14px 14px;
+  mask-image: radial-gradient(circle at 50% 50%, black, transparent 80%);
+}
+
+/* Grain noise sutil — overlay para no parecer 100% vector / IA */
+.fc-noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='180' height='180' filter='url(%23n)'/></svg>");
+  background-size: 180px 180px;
+}
+
+/* -----------------------------------------------------------------------------
+ * Glows / highlights
+ * --------------------------------------------------------------------------- */
+.fc-glow-emerald {
+  box-shadow:
+    inset 0 0 0 1px rgba(74, 222, 128, 0.4),
+    0 0 0 1px rgba(74, 222, 128, 0.15),
+    0 24px 60px -28px rgba(34, 197, 94, 0.55);
+}
+
+.fc-glow-gold {
+  box-shadow:
+    inset 0 0 0 1px rgba(251, 191, 36, 0.45),
+    0 0 0 1px rgba(251, 191, 36, 0.15),
+    0 24px 60px -28px rgba(251, 191, 36, 0.5);
+}
+
+.fc-glow-lime {
+  box-shadow:
+    inset 0 0 0 1px rgba(212, 255, 63, 0.45),
+    0 0 0 1px rgba(212, 255, 63, 0.15),
+    0 24px 60px -28px rgba(212, 255, 63, 0.55);
+}
+
+.fc-glow-magenta {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 45, 111, 0.45),
+    0 24px 60px -28px rgba(255, 45, 111, 0.45);
+}
+
+/* -----------------------------------------------------------------------------
+ * Botón CTA "FIFA" — angular, lime brillante, con flecha integrada.
+ * Reemplaza el típico botón rounded-xl SaaS.
+ * --------------------------------------------------------------------------- */
+.fc-cta-fifa {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.6rem 0.85rem 1.6rem;
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 0.86rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #04060c;
+  background: linear-gradient(95deg, #d4ff3f 0%, #c0ff1f 50%, #d4ff3f 100%);
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    calc(100% - 14px) 100%,
+    0 100%
+  );
+  box-shadow:
+    0 16px 36px -14px rgba(212, 255, 63, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.fc-cta-fifa:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow:
+    0 22px 44px -12px rgba(212, 255, 63, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.fc-cta-fifa:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Variante secundaria: outline lime con corner cut */
+.fc-cta-ghost {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d4ff3f;
+  background: rgba(212, 255, 63, 0.05);
+  border: 1px solid rgba(212, 255, 63, 0.4);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    calc(100% - 12px) 100%,
+    0 100%
+  );
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.fc-cta-ghost:hover {
+  transform: translateY(-2px);
+  background: rgba(212, 255, 63, 0.12);
+  color: #fff;
+}
+
+/* -----------------------------------------------------------------------------
+ * Tag / chip broadcast — pequeño, denso, con corner cut
+ * --------------------------------------------------------------------------- */
+.fc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.7rem;
+  font-family: var(--font-oswald), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 0;
+  clip-path: polygon(
+    6px 0,
+    100% 0,
+    calc(100% - 6px) 100%,
+    0 100%
+  );
+}
+
+.fc-chip-lime {
+  background: rgba(212, 255, 63, 0.16);
+  color: #d4ff3f;
+  box-shadow: inset 0 0 0 1px rgba(212, 255, 63, 0.45);
+}
+
+.fc-chip-magenta {
+  background: rgba(255, 45, 111, 0.18);
+  color: #ffb3c8;
+  box-shadow: inset 0 0 0 1px rgba(255, 45, 111, 0.5);
+}
+
+.fc-chip-cyan {
+  background: rgba(56, 212, 255, 0.14);
+  color: #b6ecff;
+  box-shadow: inset 0 0 0 1px rgba(56, 212, 255, 0.45);
+}
+
+.fc-chip-yellow {
+  background: rgba(255, 216, 77, 0.16);
+  color: #ffeaa0;
+  box-shadow: inset 0 0 0 1px rgba(255, 216, 77, 0.45);
+}
+
+.fc-chip-neutral {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* -----------------------------------------------------------------------------
+ * Ticker scroll horizontal (lower-third bar tipo TV)
+ * --------------------------------------------------------------------------- */
+@keyframes fc-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.fc-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: fc-ticker 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-ticker-track {
+    animation: none;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * Dot LED pulsante (live)
+ * --------------------------------------------------------------------------- */
+@keyframes fc-pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(248, 113, 113, 0);
+  }
+}
+
+.fc-pulse-dot {
+  animation: fc-pulse-dot 1.6s infinite;
+}
+
+@keyframes fc-pulse-dot-lime {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 255, 63, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(212, 255, 63, 0);
+  }
+}
+
+.fc-pulse-dot-lime {
+  animation: fc-pulse-dot-lime 1.8s infinite;
+}
+
+/* -----------------------------------------------------------------------------
+ * Animación de entrada — cards, tablas, listados
+ * --------------------------------------------------------------------------- */
+@keyframes fc-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fc-rise {
+  animation: fc-rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes fc-stripe-march {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 32px 0;
+  }
+}
+
+/* Barra diagonal animada para hero / loading */
+.fc-stripe-march {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(212, 255, 63, 0.18) 0,
+    rgba(212, 255, 63, 0.18) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  animation: fc-stripe-march 1.4s linear infinite;
+}
+
+/* -----------------------------------------------------------------------------
+ * Hover utilities — anuladas en touch para evitar el "stuck hover"
+ * --------------------------------------------------------------------------- */
+@media (hover: none) {
+  .fc-card:hover {
+    transform: none !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * Focus ring uniforme (accesible)
+ * --------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--fc-lime);
+  outline-offset: 2px;
 }

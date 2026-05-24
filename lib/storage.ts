@@ -61,10 +61,19 @@ export function removeStorage(key: string) {
   }
 }
 
-/** Limpia el snapshot de sesión local (Supabase Auth se desloguea aparte). */
+/**
+ * Limpia el snapshot de sesión local (Supabase Auth se desloguea aparte).
+ *
+ * IMPORTANTE: NO dispatcheamos `prode-session-change` desde acá. La función la
+ * llaman tanto `loadSession()` (durante la carga inicial cuando no hay sesión)
+ * como `logout()`. Si dispatcheamos en `loadSession()`, el listener de
+ * `useAuth` llama a `loadSession()` otra vez, que vuelve a ver "sin sesión"
+ * y dispatchea de nuevo → loop infinito que crece exponencialmente con cada
+ * instancia montada de `useAuth` (Navbar + página). El `dispatchEvent` lo hace
+ * sólo `logout()`, que es la única acción real que cambia el estado de auth.
+ */
 export function clearSessionCache() {
   removeStorage(storageKeys.session);
-  window.dispatchEvent(new Event("prode-session-change"));
 }
 
 /**

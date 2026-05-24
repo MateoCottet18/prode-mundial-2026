@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   emptyScore,
   parseScore,
@@ -39,8 +39,17 @@ export function useProdeStore() {
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Evita N refreshes en paralelo si llegan varios `prode-store-change` seguidos
+  // (admin guardando muchos resultados, o varios `useProdeStore` montados).
+  const isRefreshingRef = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (isRefreshingRef.current) {
+      return;
+    }
+    isRefreshingRef.current = true;
+    console.log("[perf] fetch predictions");
+    console.log("[perf] fetch results");
     setIsSyncing(true);
     setError(null);
     try {
@@ -58,6 +67,7 @@ export function useProdeStore() {
     } finally {
       setIsReady(true);
       setIsSyncing(false);
+      isRefreshingRef.current = false;
     }
   }, []);
 
