@@ -6,13 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MatchCard } from "@/components/MatchCard";
 import { PageHeader } from "@/components/PageHeader";
 import { KnockoutBracket } from "@/components/bracket/KnockoutBracket";
-import { type Matchday } from "@/data/matches";
+import { type Match, type Matchday } from "@/data/matches";
 import { useAuth } from "@/hooks/useAuth";
 import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
 import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
 import { buildBracket } from "@/lib/bracket/buildBracket";
 import type { ScoreInput } from "@/lib/prode";
+import { getPredictionLockFromResults } from "@/lib/matchTime";
 
 /**
  * Filtros aceptados:
@@ -37,19 +38,38 @@ export default function PartidosPage() {
   const router = useRouter();
   const { user, isReady: isAuthReady } = useAuth();
   const { matches } = useMatches();
+  // /partidos sólo necesita las predicciones del usuario logueado para los
+  // inputs. Pasamos `userId` para que el store no baje las predicciones de
+  // los otros 499 participantes (~4 MB que no se usan).
   const {
     predictions,
+    dbPredictions,
     savedPredictions,
     results,
     updatePrediction,
     savePrediction,
-  } = useProdeStore();
+  } = useProdeStore(user?.userId ?? undefined);
   const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<Filter>({ type: "fecha", value: 1 });
+
+  // Refresca el "now" cada 60s para que el lock por kickoff cierre la
+  // predicción aunque el usuario tenga la pestaña abierta sin interactuar.
+  // No es polling de Supabase; es un timer en memoria que sólo dispara
+  // re-renders locales.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const bracket = useMemo(
     () => buildBracket(results, matches, overridesMap),
     [results, matches, overridesMap],
+  );
+
+  const getLockForMatch = useCallback(
+    (match: Match) => getPredictionLockFromResults(match, results, now),
+    [results, now],
   );
 
   useEffect(() => {
@@ -79,9 +99,19 @@ export default function PartidosPage() {
   const handleSavePrediction = useCallback(
     async (matchId: string) => {
       if (!username) return false;
+      const match = matches.find((candidate) => candidate.id === matchId);
+      // Defensa server-side-ish: si por alguna razón el botón quedó visible
+      // pero el lock se cerró (timing race), abortamos antes de pegarle a
+      // Supabase. La UI ya bloquea inputs, así que esto es paracaídas.
+      if (match) {
+        const lock = getPredictionLockFromResults(match, results, new Date());
+        if (lock.locked) {
+          return false;
+        }
+      }
       return savePrediction(username, matchId);
     },
-    [savePrediction, username],
+    [matches, results, savePrediction, username],
   );
 
   if (isAuthReady && !user) {
@@ -126,6 +156,7 @@ export default function PartidosPage() {
 
   const isEliminatoria = activeFilter.type === "eliminatoria";
   const userPredictions = predictions[username] ?? {};
+  const userDbPredictions = dbPredictions[username] ?? {};
   const userSaved = savedPredictions[username] ?? {};
 
   return (
@@ -158,10 +189,10 @@ export default function PartidosPage() {
               key={key}
               type="button"
               onClick={() => setActiveFilter(filter)}
-              className={`fc-broadcast-cut-sm fc-display-italic shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[0.78rem] uppercase tracking-[0.14em] transition hover:-translate-y-0.5 ${
+              className={`fc-broadcast-cut-sm fc-display-italic shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[0.78rem] uppercase tracking-[0.14em] transition-colors ${
                 isActive
-                  ? "bg-[var(--fc-lime)] text-slate-950 shadow-[0_0_24px_rgba(212,255,63,0.45)]"
-                  : "border border-white/[0.07] bg-white/[0.025] text-slate-300 hover:border-[var(--fc-lime)]/30 hover:bg-[var(--fc-lime)]/[0.08] hover:text-white"
+                  ? "bg-[var(--fc-lime)] text-slate-950"
+                  : "border border-white/[0.08] bg-white/[0.02] text-slate-300 hover:border-[var(--fc-lime)]/30 hover:bg-[var(--fc-lime)]/[0.06] hover:text-white"
               }`}
             >
               <span
@@ -181,9 +212,11 @@ export default function PartidosPage() {
           bracket={bracket}
           results={results}
           predictions={userPredictions}
+          dbPredictions={userDbPredictions}
           savedPredictions={userSaved}
           mode="view"
           canPredict={Boolean(canPredict)}
+          getPredictionLock={getLockForMatch}
           onPredictionChange={canPredict ? handlePredictionChange : undefined}
           onSavePrediction={canPredict ? handleSavePrediction : undefined}
         />
@@ -194,13 +227,15 @@ export default function PartidosPage() {
               key={match.id}
               match={match}
               prediction={userPredictions[match.id]}
+              dbPrediction={userDbPredictions[match.id]}
               result={results[match.id]}
               isSaved={userSaved[match.id]}
               canPredict={canPredict}
+              predictionLock={getLockForMatch(match)}
               onPredictionChange={(side, value) =>
                 updatePrediction(username, match.id, side, value)
               }
-              onSavePrediction={() => savePrediction(username, match.id)}
+              onSavePrediction={() => handleSavePrediction(match.id)}
             />
           ))}
         </div>

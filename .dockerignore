@@ -1,0 +1,79 @@
+# =============================================================================
+# Archivos / directorios excluidos del build context que se manda al daemon
+# de Docker. Cuanto menos contexto, más rápido el build y menos riesgo de
+# meter secretos en la imagen.
+# =============================================================================
+
+# Dependencias y artefactos: se reconstruyen dentro de la imagen.
+node_modules
+.next
+out
+dist
+build
+
+# Caches locales / Turbopack
+.turbo
+.next/dev
+.next/cache
+
+# Secrets — NUNCA deben terminar adentro de la imagen.
+.env
+.env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
+
+# Git & control de versiones
+.git
+.gitignore
+.gitattributes
+.github
+
+# IDEs / editores
+.vscode
+.idea
+.cursor
+*.swp
+*.swo
+
+# Logs y reportes
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Documentación / artefactos no necesarios en runtime
+README.md
+AGENTS.md
+CLAUDE.md
+docs
+
+# Carpetas de recursos del proyecto que no son código
+agent-transcripts
+mcps
+terminals
+assets
+
+# Tests / coverage
+coverage
+.nyc_output
+*.tsbuildinfo
+
+# Archivos de Docker (no entran al build context — se evita un layer extra
+# y se previene re-trigger del COPY al editar el Dockerfile).
+Dockerfile
+.dockerignore
+
+# Carpeta supabase/ — son scripts SQL de migración manual, no se ejecutan
+# en runtime y no hace falta meterlos en la imagen del runtime.
+supabase

@@ -38,7 +38,7 @@ export function AdminOverdueAlert({
         </div>
         <Link
           href={resultsHref}
-          className="fc-display rounded-lg bg-red-300 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-950 shadow-[0_12px_28px_-12px_rgba(239,68,68,0.55)] transition hover:-translate-y-0.5"
+          className="fc-display rounded-md bg-red-300 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-950 transition-colors hover:bg-red-200"
         >
           Cargar ahora
         </Link>

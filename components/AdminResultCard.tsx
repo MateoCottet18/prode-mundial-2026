@@ -33,7 +33,7 @@ export function AdminResultCard({
   const hasValidResult = Boolean(parsed);
 
   return (
-    <article className="fc-card fc-card-accent group flex h-full flex-col p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/35 hover:shadow-[0_22px_60px_-22px_rgba(74,222,128,0.35)]">
+    <article className="fc-card fc-card-accent group flex h-full flex-col p-5 transition-colors duration-200 hover:border-emerald-300/30">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="fc-display rounded-md bg-white/[0.08] px-2.5 py-1 text-[0.7rem] uppercase tracking-[0.16em] text-slate-100">
@@ -118,7 +118,7 @@ export function AdminResultCard({
           type="button"
           onClick={onSaveResult}
           disabled={!canEditResult || !hasValidResult}
-          className="fc-display rounded-lg border border-emerald-300/40 bg-emerald-300/10 px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+          className="fc-display rounded-md border border-emerald-300/40 bg-emerald-300/10 px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-emerald-100 transition-colors hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Guardar
         </button>
@@ -126,7 +126,7 @@ export function AdminResultCard({
           type="button"
           onClick={onEditResult}
           disabled={canEditResult}
-          className="fc-display rounded-lg border border-white/15 bg-white/[0.06] px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+          className="fc-display rounded-md border border-white/15 bg-white/[0.06] px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Editar
         </button>
@@ -134,7 +134,7 @@ export function AdminResultCard({
           type="button"
           onClick={onDeleteResult}
           disabled={!hasValidResult && !hasSavedResult}
-          className="fc-display rounded-lg border border-red-300/30 bg-red-300/10 px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+          className="fc-display rounded-md border border-red-300/30 bg-red-300/10 px-4 py-2 text-[0.72rem] uppercase tracking-[0.16em] text-red-100 transition-colors hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Borrar
         </button>
@@ -150,21 +150,24 @@ export function AdminResultCard({
 function TeamSide({
   name,
   manual = false,
-  alignRight = false,
 }: {
   name: string;
   manual?: boolean;
+  /** No usado en variante stack, queda para no romper llamadas existentes. */
   alignRight?: boolean;
 }) {
   return (
-    <div className={`min-w-0 ${alignRight ? "text-right" : ""}`}>
-      <p className="fc-display text-[1.05rem] uppercase tracking-[0.04em] text-white">
-        <CountryWithFlag name={name} size={28} alignRight={alignRight} truncate />
-      </p>
+    <div className="flex min-w-0 flex-col items-center gap-1">
+      <CountryWithFlag
+        name={name}
+        size={56}
+        variant="stack"
+        nameClassName="text-[0.72rem]"
+      />
       {manual ? (
         <span
           title="Definido por el admin (override manual)"
-          className="fc-display mt-1 inline-block rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.18em] text-amber-100"
+          className="fc-display inline-block rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.18em] text-amber-100"
         >
           Manual
         </span>

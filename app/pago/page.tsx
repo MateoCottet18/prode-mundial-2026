@@ -60,7 +60,10 @@ export default function PagoPage() {
   }, [user, loadLatestPayment]);
 
   const paymentLoaded = !user || loadedForUserId === user.userId;
-  const payerNameValue = payerName || user?.name || "";
+  // Texto libre: NO se prellena con el nombre del usuario logueado. El que
+  // hizo la transferencia puede ser otra persona (p.ej. un familiar), así
+  // que el input arranca vacío.
+  const payerNameValue = payerName;
 
   const pageStatus: PageStatus = useMemo(() => {
     if (!isAuthReady || !paymentLoaded) {
@@ -92,8 +95,11 @@ export default function PagoPage() {
     }
 
     const cleanName = payerNameValue.trim();
-    if (cleanName.length < 2) {
-      setError("Ingresá el nombre y apellido de quien hizo la transferencia.");
+    // Única validación: que no esté vacío. NO comparamos contra `user.name`
+    // porque la transferencia puede haberla hecho otra persona (familiar,
+    // amigo, etc.) y eso es válido.
+    if (cleanName.length === 0) {
+      setError("Ingresá el nombre de quien hizo la transferencia.");
       return;
     }
 
@@ -142,10 +148,8 @@ export default function PagoPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-14 sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.07] bg-[#03060d] p-8">
-        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
+      <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1018] p-8">
+        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe opacity-90" />
 
         <div className="relative">
           <span className="fc-chip fc-chip-lime">
@@ -162,22 +166,21 @@ export default function PagoPage() {
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {[
-              ["Alias", "mateo.cottet"],
+              ["Alias", "mundial.prode.mp"],
               ["Importe", "$10.000"],
               ["Titular", "Mateo Cottet"],
             ].map(([label, value]) => (
               <div
                 key={label}
-                className="fc-broadcast-cut-sm relative flex flex-col gap-1 overflow-hidden border border-[var(--fc-lime)]/25 bg-[var(--fc-lime)]/[0.05] p-5"
+                className="fc-broadcast-cut-sm relative flex flex-col gap-1 border border-[var(--fc-lime)]/22 bg-[var(--fc-lime)]/[0.04] p-5"
               >
-                <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
-                <div className="relative flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
                   <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
                     {label}
                   </p>
                 </div>
-                <p className="relative fc-stencil text-3xl text-white">{value}</p>
+                <p className="fc-stencil text-3xl text-white">{value}</p>
               </div>
             ))}
           </div>
@@ -219,7 +222,7 @@ export default function PagoPage() {
 
 function LoadingState() {
   return (
-    <div className="fc-broadcast-cut-sm border border-white/[0.07] bg-[#02050b]/65 p-5 text-sm text-slate-300">
+    <div className="fc-broadcast-cut-sm border border-white/[0.07] bg-[#070b13] p-5 text-sm text-slate-300">
       Cargando estado de tu pago…
     </div>
   );
@@ -227,16 +230,15 @@ function LoadingState() {
 
 function ApprovedState() {
   return (
-    <div className="fc-broadcast-cut-sm relative flex flex-col items-start gap-4 overflow-hidden border border-[var(--fc-lime)]/40 bg-[var(--fc-lime)]/[0.06] p-5 fc-glow-lime">
-      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-      <span className="fc-chip fc-chip-lime relative">
+    <div className="fc-broadcast-cut-sm relative flex flex-col items-start gap-4 border border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/[0.05] p-5">
+      <span className="fc-chip fc-chip-lime">
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
         Pago aprobado
       </span>
-      <p className="relative text-sm text-[var(--fc-lime)]/90">
+      <p className="text-sm text-[var(--fc-lime)]/90">
         Tu inscripción quedó confirmada. Ya podés cargar tus predicciones.
       </p>
-      <Link href="/partidos" className="fc-cta-fifa relative">
+      <Link href="/partidos" className="fc-cta-fifa">
         <span aria-hidden>▸</span> Ir a predicciones
       </Link>
     </div>
@@ -245,17 +247,16 @@ function ApprovedState() {
 
 function PendingReviewState({ payment }: { payment: PaymentRecord | null }) {
   return (
-    <div className="fc-broadcast-cut-sm relative overflow-hidden border border-[var(--fc-yellow)]/30 bg-[var(--fc-yellow)]/[0.06] p-5 text-[var(--fc-yellow)]">
-      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-      <span className="fc-chip fc-chip-yellow relative">
+    <div className="fc-broadcast-cut-sm relative border border-[var(--fc-yellow)]/30 bg-[var(--fc-yellow)]/[0.05] p-5 text-[var(--fc-yellow)]">
+      <span className="fc-chip fc-chip-yellow">
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-yellow)] fc-pulse-dot" />
         Pendiente de revisión
       </span>
-      <p className="relative mt-3 fc-display-italic text-lg uppercase tracking-[0.04em] text-white">
+      <p className="mt-3 fc-display-italic text-lg uppercase tracking-[0.04em] text-white">
         Tu declaración fue enviada.
       </p>
       {payment ? (
-        <div className="fc-broadcast-cut-sm relative mt-3 space-y-1 border border-white/[0.07] bg-[#02050b]/65 p-4 text-sm text-[var(--fc-yellow)]/90">
+        <div className="fc-broadcast-cut-sm mt-3 space-y-1 border border-white/[0.07] bg-[#070b13] p-4 text-sm text-[var(--fc-yellow)]/90">
           {payment.payerName ? (
             <p>
               Pagador declarado:{" "}
@@ -265,7 +266,7 @@ function PendingReviewState({ payment }: { payment: PaymentRecord | null }) {
           <p>Enviado: {new Date(payment.uploadedAt).toLocaleString()}</p>
         </div>
       ) : null}
-      <p className="relative mt-3 text-sm text-[var(--fc-yellow)]/80">
+      <p className="mt-3 text-sm text-[var(--fc-yellow)]/80">
         El admin revisa los pagos manualmente. Cuando lo apruebe, te habilitamos
         automáticamente para cargar tus predicciones.
       </p>
@@ -317,20 +318,20 @@ function DeclarationForm({
           type="text"
           value={payerName}
           onChange={(event) => onPayerNameChange(event.target.value)}
-          placeholder="Ej: Mateo García"
+          placeholder="Nombre y apellido"
           disabled={submitting}
           autoComplete="name"
           className="mt-2 h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15 disabled:opacity-60 fc-broadcast-cut-sm"
         />
         <span className="mt-2 block text-xs text-slate-400">
-          Tiene que coincidir con el nombre que figura en tu transferencia bancaria/Mercado
-          Pago. El admin lo usa para identificar tu pago.
+          Puede ser tu nombre o el de otra persona, por ejemplo un familiar. El admin
+          lo usa para identificar tu pago.
         </span>
       </label>
 
       <button
         type="submit"
-        disabled={submitting || payerName.trim().length < 2}
+        disabled={submitting || payerName.trim().length === 0}
         className="fc-cta-fifa"
       >
         {submitting ? (

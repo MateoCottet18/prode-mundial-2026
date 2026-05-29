@@ -26,12 +26,15 @@ type SectionId = "payments" | "overrides" | "bracket" | "results";
 export default function AdminPage() {
   const { user, isReady: isAuthReady } = useAuth();
   const { matches } = useMatches();
+  // El admin no necesita predicciones de nadie en este screen, sólo resultados.
+  // Pasamos su userId para que el store filtre por user_id (admin no predice,
+  // así que el fetch vuelve vacío en vez de bajar 52k filas).
   const {
     results,
     saveResult,
     deleteResult,
     recalculatePoints,
-  } = useProdeStore();
+  } = useProdeStore(user?.userId ?? undefined);
   const { registeredUsers, updatePaymentStatus } = useUsers();
   const {
     overrides,
@@ -252,15 +255,14 @@ function Kpi({
   }[tone];
 
   return (
-    <div className={`fc-broadcast-cut-sm relative flex flex-col gap-1 overflow-hidden border p-4 ${palette.border}`}>
-      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
-      <div className="relative flex items-center gap-2">
+    <div className={`fc-broadcast-cut-sm relative flex flex-col gap-1 border p-4 ${palette.border}`}>
+      <div className="flex items-center gap-2">
         <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${palette.color.replace("text-", "bg-")}`} />
         <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-400">
           {label}
         </p>
       </div>
-      <p className={`fc-stencil relative text-3xl ${palette.color}`}>{value}</p>
+      <p className={`fc-stencil text-3xl ${palette.color}`}>{value}</p>
     </div>
   );
 }

@@ -2,16 +2,33 @@ import { calculatePoints, parseScore, type PredictionsByUser, type ResultsByMatc
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { toScoreInput } from "@/lib/supabase/types";
 
-export async function fetchPredictionsFromSupabase() {
+/**
+ * Trae predicciones desde Supabase.
+ *
+ * Si se pasa `userId`, sólo devuelve las predicciones de ese usuario.
+ * Esto es el camino caliente para `/partidos` y `/perfil` donde el usuario
+ * sólo necesita las propias para editar/ver. A 500 usuarios x 104 matches el
+ * fetch sin filtro pesa ~4 MB; con filtro queda en ~10 KB.
+ *
+ * Sin `userId`, devuelve todo. Compat para vistas que aún lo necesiten.
+ *
+ * Para el RANKING, NO usar este fetcher. Usar `fetchRankingAggregatesFromSupabase`
+ * que devuelve totales pre-agregados (~500 filas en vez de ~52k).
+ */
+export async function fetchPredictionsFromSupabase(userId?: string) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return null;
   }
 
-  const { data, error } = await supabase
+  const baseQuery = supabase
     .from("predictions")
     .select("user_id,match_id,home_goals,away_goals");
+
+  const { data, error } = userId
+    ? await baseQuery.eq("user_id", userId)
+    : await baseQuery;
 
   if (error) {
     throw new Error(error.message);
@@ -34,6 +51,57 @@ export async function fetchPredictionsFromSupabase() {
   return { predictions, savedPredictions };
 }
 
+/**
+ * Totales pre-agregados por usuario para el ranking.
+ *
+ * Lee `public.prediction_aggregates`, una view que agrupa
+ * `public.predictions` por `user_id` y devuelve los 4 contadores que el
+ * ranking necesita. Cálculo en Postgres, no en JS.
+ *
+ * Trade-off: depende de que `predictions.points` esté actualizada. Eso ya
+ * está garantizado: `recalculatePredictionPoints` corre tras cada save/delete
+ * de result.
+ */
+export type PredictionAggregate = {
+  userId: string;
+  points: number;
+  exactCount: number;
+  correctOutcomesCount: number;
+  savedCount: number;
+};
+
+export async function fetchRankingAggregatesFromSupabase(): Promise<
+  PredictionAggregate[] | null
+> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("prediction_aggregates")
+    .select("user_id,points,exact_count,correct_outcomes_count,saved_count");
+
+  if (error) {
+    // Si la view no existe todavía (DB sin migrar), devolvemos null para que el
+    // caller caiga a un fallback en lugar de romper la página.
+    console.error(
+      "[predictionService] no se pudo leer prediction_aggregates",
+      error.message,
+    );
+    return null;
+  }
+
+  return (data ?? []).map((row) => ({
+    userId: row.user_id,
+    points: row.points ?? 0,
+    exactCount: row.exact_count ?? 0,
+    correctOutcomesCount: row.correct_outcomes_count ?? 0,
+    savedCount: row.saved_count ?? 0,
+  }));
+}
+
 export async function savePredictionToSupabase({
   userId,
   matchId,
@@ -53,14 +121,25 @@ export async function savePredictionToSupabase({
   }
 
   const points = calculatePoints(score, results[matchId], true) ?? 0;
-  const { error } = await supabase.from("predictions").upsert({
-    user_id: userId,
-    match_id: matchId,
-    home_goals: parsedScore.home,
-    away_goals: parsedScore.away,
-    points,
-    updated_at: new Date().toISOString(),
-  });
+  // CRITICAL: especificar `onConflict` por la unique (user_id, match_id).
+  // Sin esto, supabase-js usa el primary key `id` como conflict target;
+  // como `id` no viene en el payload, PostgREST genera uno nuevo, intenta
+  // INSERT, y la unique (user_id, match_id) lo rechaza al editar una
+  // predicción que ya existía. Resultado visible: el usuario "no podía
+  // editar" su predicción.
+  const { error } = await supabase
+    .from("predictions")
+    .upsert(
+      {
+        user_id: userId,
+        match_id: matchId,
+        home_goals: parsedScore.home,
+        away_goals: parsedScore.away,
+        points,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,match_id" },
+    );
 
   if (error) {
     throw new Error(error.message);
@@ -85,6 +164,20 @@ export async function deletePredictionFromSupabase(userId: string, matchId: stri
   return true;
 }
 
+/**
+ * Recalcula `points` para TODAS las predicciones según los resultados pasados.
+ *
+ * Implementación optimizada para ~100-300 participantes:
+ *   1. Traemos todas las predicciones (incluyendo `points` actual).
+ *   2. Calculamos el nuevo valor en memoria.
+ *   3. Agrupamos los IDs por valor de `points` y SÓLO actualizamos las filas
+ *      que cambian, en pocas queries.
+ *
+ * En la práctica `calculatePoints` devuelve 0/1/3, así que en el peor caso
+ * son 3 buckets → 3 UPDATEs (chunkeados a 500 ids por seguridad de URL).
+ * Antes hacíamos un UPDATE por predicción (hasta 10k+ requests en paralelo,
+ * que saturaba el free tier de Supabase).
+ */
 export async function recalculatePredictionPoints(results: ResultsByMatch) {
   const supabase = getSupabaseClient();
 
@@ -94,22 +187,42 @@ export async function recalculatePredictionPoints(results: ResultsByMatch) {
 
   const { data, error } = await supabase
     .from("predictions")
-    .select("id,match_id,home_goals,away_goals");
+    .select("id,match_id,home_goals,away_goals,points");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  await Promise.all(
-    data.map((prediction) => {
-      const score = toScoreInput(prediction.home_goals, prediction.away_goals);
-      const points = calculatePoints(score, results[prediction.match_id], true) ?? 0;
-      return supabase
+  const idsByPoints = new Map<number, string[]>();
+  for (const row of data ?? []) {
+    const score = toScoreInput(row.home_goals, row.away_goals);
+    const next = calculatePoints(score, results[row.match_id], true) ?? 0;
+    if (next === row.points) {
+      continue;
+    }
+    const list = idsByPoints.get(next);
+    if (list) {
+      list.push(row.id);
+    } else {
+      idsByPoints.set(next, [row.id]);
+    }
+  }
+
+  // Chunkeamos por seguridad de URL (Supabase REST usa GET-style filters
+  // en updates con .in() y URLs >8KB pueden romperse en algunos proxies).
+  const CHUNK_SIZE = 500;
+  for (const [points, ids] of idsByPoints) {
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { error: updateError } = await supabase
         .from("predictions")
         .update({ points })
-        .eq("id", prediction.id);
-    }),
-  );
+        .in("id", chunk);
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+  }
 
   return true;
 }

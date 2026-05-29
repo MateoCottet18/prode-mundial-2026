@@ -31,6 +31,12 @@ export type AppUser = {
   paymentProof?: PaymentProof;
   paidAt?: string;
   rejectedAt?: string;
+  /**
+   * ISO timestamp de creación del profile en Supabase. Lo usamos como
+   * último criterio de desempate del ranking: si dos participantes tienen
+   * todos los criterios numéricos iguales, gana el que se inscribió antes.
+   */
+  createdAt?: string;
 };
 
 export type SessionUser = {

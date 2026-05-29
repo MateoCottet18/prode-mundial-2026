@@ -65,7 +65,7 @@ export function AdminPaymentsSection({ registeredUsers, onApprove, onReject }: P
         return (
           <article
             key={registeredUser.username}
-            className="fc-card flex flex-col gap-3 p-4 transition hover:-translate-y-0.5"
+            className="fc-card flex flex-col gap-3 p-4 transition-colors hover:border-emerald-300/20"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
@@ -125,14 +125,14 @@ export function AdminPaymentsSection({ registeredUsers, onApprove, onReject }: P
               <button
                 type="button"
                 onClick={() => onApprove(registeredUser.id ?? registeredUser.username)}
-                className="fc-display rounded-lg border border-emerald-300/40 bg-emerald-300/15 px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.16em] text-emerald-50 shadow-md shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-300/25"
+                className="fc-display rounded-md border border-emerald-300/40 bg-emerald-300/15 px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.16em] text-emerald-50 transition-colors hover:bg-emerald-300/25"
               >
                 Aprobar
               </button>
               <button
                 type="button"
                 onClick={() => onReject(registeredUser.id ?? registeredUser.username)}
-                className="fc-display rounded-lg border border-red-300/30 bg-red-300/10 px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.16em] text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/20"
+                className="fc-display rounded-md border border-red-300/30 bg-red-300/10 px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.16em] text-red-100 transition-colors hover:bg-red-300/20"
               >
                 Rechazar
               </button>

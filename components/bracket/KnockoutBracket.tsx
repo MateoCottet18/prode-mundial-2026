@@ -7,14 +7,24 @@ import { BracketConnector } from "@/components/bracket/BracketConnector";
 import { BracketTrophy } from "@/components/bracket/BracketTrophy";
 import type { ResultsByMatch, ScoreInput } from "@/lib/prode";
 import type { BracketLayout, BracketMode } from "@/types/bracket";
+import type { PredictionLock } from "@/lib/matchTime";
 
 type Props = {
   bracket: BracketLayout;
   results: ResultsByMatch;
+  /** Inputs locales del usuario (editable, "dirty" mientras escribe). */
   predictions: Record<string, ScoreInput>;
+  /** Valores confirmados en Supabase (lectura/locked). Opcional. */
+  dbPredictions?: Record<string, ScoreInput>;
   savedPredictions: Record<string, boolean>;
   mode: BracketMode;
   canPredict?: boolean;
+  /**
+   * Función que decide si la predicción está abierta para un match dado.
+   * Si no se pasa, cada match queda abierto (compat con admin / vistas
+   * históricas sin gating temporal).
+   */
+  getPredictionLock?: (match: Match) => PredictionLock;
   onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
@@ -35,9 +45,11 @@ export function KnockoutBracket({
   bracket,
   results,
   predictions,
+  dbPredictions,
   savedPredictions,
   mode,
   canPredict = false,
+  getPredictionLock,
   onSaveResult,
   onDeleteResult,
   onPredictionChange,
@@ -49,9 +61,11 @@ export function KnockoutBracket({
       match={match}
       result={results[match.id]}
       prediction={predictions[match.id]}
+      dbPrediction={dbPredictions?.[match.id]}
       isPredictionSaved={Boolean(savedPredictions[match.id])}
       mode={mode}
       canPredict={canPredict}
+      predictionLock={getPredictionLock?.(match)}
       allResults={results}
       highlight={highlight}
       onSaveResult={onSaveResult}
@@ -87,9 +101,11 @@ export function KnockoutBracket({
           thirdPlaceMatch={bracket.tercerPuesto}
           results={results}
           predictions={predictions}
+          dbPredictions={dbPredictions}
           savedPredictions={savedPredictions}
           mode={mode}
           canPredict={canPredict}
+          getPredictionLock={getPredictionLock}
           onSaveResult={onSaveResult}
           onDeleteResult={onDeleteResult}
           onPredictionChange={onPredictionChange}

@@ -162,7 +162,7 @@ export function QualificationOverridesAdmin({
           return (
             <article
               key={slot.id}
-              className={`fc-card p-4 transition hover:-translate-y-0.5 ${
+              className={`fc-card p-4 transition-colors hover:border-emerald-300/20 ${
                 isManual
                   ? "border-amber-300/30 bg-amber-300/[0.05]"
                   : ""
@@ -246,7 +246,7 @@ export function QualificationOverridesAdmin({
                   type="button"
                   onClick={() => handleSave(slot.id, auto)}
                   disabled={isSaving || !draftTeam}
-                  className="fc-display rounded-lg bg-emerald-300 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-950 shadow-[0_10px_24px_-12px_rgba(74,222,128,0.55)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                  className="fc-display rounded-md bg-emerald-300 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-slate-950 transition-colors hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSaving ? "Guardando…" : isManual ? "Actualizar override" : "Guardar override"}
                 </button>
@@ -255,7 +255,7 @@ export function QualificationOverridesAdmin({
                     type="button"
                     onClick={() => handleRemove(slot.id)}
                     disabled={isSaving}
-                    className="fc-display rounded-lg border border-red-300/30 bg-red-300/10 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                    className="fc-display rounded-md border border-red-300/30 bg-red-300/10 px-4 py-2 text-[0.7rem] uppercase tracking-[0.16em] text-red-100 transition-colors hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Volver al cálculo automático
                   </button>

@@ -56,19 +56,17 @@ export default function LoginPage() {
   return (
     <main className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-14">
       <section className="relative">
-        <div className="flex items-center gap-3">
-          <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-lime)] shadow-[0_0_18px_rgba(212,255,63,0.55)]" />
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden className="h-2 w-2 rotate-45 bg-[var(--fc-lime)]" />
           <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-lime)]">
             Acceso participantes
           </p>
         </div>
-        <h1 className="mt-4 fc-headline-mega text-[3rem] sm:text-6xl lg:text-7xl">
+        <h1 className="mt-4 fc-headline-mega text-[2.6rem] sm:text-5xl lg:text-6xl">
           <span className="block text-white">VOLVÉ AL</span>
-          <span className="block text-[var(--fc-lime)] drop-shadow-[0_8px_24px_rgba(212,255,63,0.35)]">
-            CAMPO
-          </span>
+          <span className="block text-[var(--fc-lime)]">CAMPO</span>
         </h1>
-        <p className="mt-6 max-w-xl text-base leading-7 text-slate-300">
+        <p className="mt-6 max-w-xl text-base leading-7 text-slate-400">
           Ingresá con tu <strong className="text-white">email</strong> o tu{" "}
           <strong className="text-white">usuario</strong>. Tus predicciones, puntos y posición
           siguen exactamente donde los dejaste.
@@ -80,12 +78,10 @@ export default function LoginPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.07] bg-[#03060d] p-7 sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a1018] p-7 sm:p-8"
         autoComplete="on"
       >
-        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
+        <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] fc-flag-stripe opacity-90" />
 
         <div className="relative">
           <span className="fc-chip fc-chip-cyan">
@@ -104,7 +100,7 @@ export default function LoginPage() {
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
               className="fc-broadcast-cut-sm mt-2 h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15"
-              placeholder="usuario · tu@email.com"
+              placeholder="Usuario o email"
               autoComplete="username"
               autoCapitalize="off"
               spellCheck={false}
@@ -122,7 +118,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="fc-broadcast-cut-sm h-12 w-full border border-white/[0.07] bg-[#02050b]/85 px-4 pr-20 text-white outline-none transition placeholder:text-slate-500 hover:border-white/15 focus:border-[var(--fc-lime)] focus:ring-4 focus:ring-[var(--fc-lime)]/15"
-                placeholder="••••••••"
+                placeholder="Contraseña"
                 autoComplete="current-password"
                 disabled={submitting}
               />

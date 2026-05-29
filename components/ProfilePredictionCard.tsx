@@ -39,7 +39,7 @@ export function ProfilePredictionCard({
           : "border-white/10 bg-white/[0.05] text-slate-200";
 
   return (
-    <article className="fc-card fc-card-accent flex h-full flex-col p-5 transition hover:-translate-y-0.5 hover:border-emerald-300/30">
+    <article className="fc-card fc-card-accent flex h-full flex-col p-5 transition-colors hover:border-emerald-300/25">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <span className="fc-display rounded-md bg-white/[0.08] px-2.5 py-1 text-[0.7rem] uppercase tracking-[0.16em] text-slate-100">
@@ -66,15 +66,21 @@ export function ProfilePredictionCard({
       </div>
 
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-white/[0.06] bg-slate-950/55 px-4 py-4">
-        <div className="min-w-0">
-          <CountryWithFlag name={match.homeTeam} size={26} truncate />
-        </div>
-        <span className="fc-display text-[0.7rem] uppercase tracking-[0.22em] text-slate-400">
+        <CountryWithFlag
+          name={match.homeTeam}
+          size={48}
+          variant="stack"
+          nameClassName="text-[0.68rem]"
+        />
+        <span className="fc-display-italic text-[0.7rem] uppercase tracking-[0.22em] text-slate-500">
           vs
         </span>
-        <div className="min-w-0 text-right">
-          <CountryWithFlag name={match.awayTeam} size={26} alignRight truncate />
-        </div>
+        <CountryWithFlag
+          name={match.awayTeam}
+          size={48}
+          variant="stack"
+          nameClassName="text-[0.68rem]"
+        />
       </div>
 
       <div className="mt-5 grid gap-2.5 text-sm">

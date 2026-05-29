@@ -14,15 +14,15 @@ export default function ReglasPage() {
         {[
           [
             "Cómo participar",
-            "Registrate como participante, transferí la inscripción al alias mateo.cottet y declarás quién hizo la transferencia desde /pago.",
+            "Registrate como participante, transferí la inscripción al alias mundial.prode.mp y declarás quién hizo la transferencia desde /pago.",
           ],
           [
             "Inscripción",
-            "La inscripción cuesta $10.000 pesos. Alias: mateo.cottet. Titular: Mateo Cottet.",
+            "La inscripción cuesta $10.000 pesos. Alias: mundial.prode.mp. Titular: Mateo Cottet.",
           ],
           [
-            "Premio",
-            "El premio mayor es de $100.000 pesos para quien termine primero en la tabla de participantes.",
+            "Premios",
+            "Hay tres premios: $250.000 al primero, 2 camisetas de la Selección Argentina al segundo y un kit sublimado personalizado al tercero.",
           ],
           [
             "Pago pendiente",
@@ -48,32 +48,31 @@ export default function ReglasPage() {
           return (
             <article
               key={title}
-              className="fc-card fc-card-accent relative overflow-hidden p-6 transition hover:-translate-y-1 hover:border-[var(--fc-lime)]/30"
+              className="fc-card fc-card-accent relative p-6 transition-colors hover:border-[var(--fc-lime)]/25"
             >
-              <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
-              <div className="relative flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <span aria-hidden className={`h-2 w-2 rotate-45 ${dotColors[idx % dotColors.length]}`} />
-                <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-400">
+                <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-500">
                   Capítulo {String(idx + 1).padStart(2, "0")}
                 </p>
               </div>
-              <h2 className="relative mt-3 fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
+              <h2 className="mt-3 fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
                 {title}
               </h2>
-              <p className="relative mt-3 text-sm leading-6 text-slate-300">{description}</p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">{description}</p>
             </article>
           );
         })}
       </section>
 
       <section className="mt-14">
-        <div className="mb-6 flex items-center gap-3">
-          <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-lime)] shadow-[0_0_18px_rgba(212,255,63,0.55)]" />
+        <div className="mb-5 flex items-center gap-2.5">
+          <span aria-hidden className="h-2 w-2 rotate-45 bg-[var(--fc-lime)]" />
           <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-lime)]">
             Sistema de puntos
           </p>
         </div>
-        <h2 className="mb-6 fc-display-italic text-3xl uppercase leading-[0.95] tracking-[0.005em] text-white sm:text-4xl">
+        <h2 className="mb-6 fc-display-italic text-2xl uppercase leading-[0.95] tracking-[0.005em] text-white sm:text-3xl">
           Cómo se suman puntos
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
@@ -111,19 +110,18 @@ export default function ReglasPage() {
             return (
               <article
                 key={title}
-                className={`fc-broadcast-cut relative flex h-full flex-col gap-3 overflow-hidden border p-6 transition hover:-translate-y-1 ${palette}`}
+                className={`fc-broadcast-cut relative flex h-full flex-col gap-3 border p-6 transition-colors ${palette}`}
               >
-                <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-                <div className="relative flex items-baseline gap-2">
-                  <p className="fc-stencil text-7xl leading-none">{points}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="fc-stencil text-6xl leading-none">{points}</p>
                   <p className="fc-display-italic text-sm uppercase tracking-[0.22em]">
                     {label}
                   </p>
                 </div>
-                <h2 className="relative fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
+                <h2 className="fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
                   {title}
                 </h2>
-                <p className="relative text-sm leading-6 text-slate-300">{description}</p>
+                <p className="text-sm leading-6 text-slate-300">{description}</p>
               </article>
             );
           })}
@@ -132,25 +130,24 @@ export default function ReglasPage() {
 
       {/* CRITERIO DE DESEMPATE */}
       <section className="mt-14">
-        <div className="mb-6 flex items-center gap-3">
-          <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-magenta)] shadow-[0_0_18px_rgba(255,45,111,0.55)]" />
+        <div className="mb-5 flex items-center gap-2.5">
+          <span aria-hidden className="h-2 w-2 rotate-45 bg-[var(--fc-magenta)]" />
           <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-magenta)]">
             Criterio de desempate
           </p>
         </div>
-        <h2 className="mb-6 fc-display-italic text-3xl uppercase leading-[0.95] tracking-[0.005em] text-white sm:text-4xl">
+        <h2 className="mb-6 fc-display-italic text-2xl uppercase leading-[0.95] tracking-[0.005em] text-white sm:text-3xl">
           Cómo se rompen los empates
         </h2>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           {/* Pasos del desempate */}
-          <article className="fc-broadcast-cut relative overflow-hidden border border-white/[0.07] bg-[#02050b]/75 p-6">
-            <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
-            <div aria-hidden className="absolute inset-x-4 top-0 h-[2px] fc-flag-stripe opacity-70" />
-            <p className="relative text-sm leading-6 text-slate-300">
+          <article className="fc-broadcast-cut relative overflow-hidden border border-white/[0.07] bg-[#0a1018] p-6">
+            <div aria-hidden className="absolute inset-x-4 top-0 h-[2px] fc-flag-stripe opacity-80" />
+            <p className="text-sm leading-6 text-slate-300">
               En caso de empate en puntos entre dos o más participantes, se define por:
             </p>
-            <ol className="relative mt-5 space-y-3">
+            <ol className="mt-5 space-y-3">
               {[
                 {
                   title: "Resultados exactos",
@@ -165,10 +162,10 @@ export default function ReglasPage() {
                   icon: "✓",
                 },
                 {
-                  title: "Posición compartida",
-                  description: "Si continúa el empate, se compartirá la posición hasta que exista otro criterio.",
+                  title: "Orden de inscripción",
+                  description: "Si todo lo anterior queda igual, gana el participante que se haya inscripto antes. Aunque sea injusto, hay que definir un solo ganador.",
                   tone: "neutral" as const,
-                  icon: "=",
+                  icon: "⏱",
                 },
               ].map((step, idx) => {
                 const palette = {
@@ -215,19 +212,18 @@ export default function ReglasPage() {
           </article>
 
           {/* Ejemplo aclaratorio */}
-          <article className="fc-broadcast-cut relative overflow-hidden border border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/[0.05] p-6">
-            <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-            <div aria-hidden className="absolute inset-x-4 top-0 h-[2px] fc-flag-stripe opacity-70" />
-            <p className="relative fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
+          <article className="fc-broadcast-cut relative overflow-hidden border border-[var(--fc-lime)]/25 bg-[var(--fc-lime)]/[0.04] p-6">
+            <div aria-hidden className="absolute inset-x-4 top-0 h-[2px] fc-flag-stripe opacity-80" />
+            <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
               Importante
             </p>
-            <h3 className="relative mt-2 fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
+            <h3 className="mt-2 fc-display-italic text-xl uppercase tracking-[0.04em] text-white">
               Un exacto pesa más
             </h3>
-            <p className="relative mt-3 text-sm leading-6 text-slate-300">
+            <p className="mt-3 text-sm leading-6 text-slate-300">
               Un resultado exacto vale más que sumar varios aciertos parciales en el desempate.
             </p>
-            <div className="relative mt-4 space-y-3">
+            <div className="mt-4 space-y-3">
               <div className="fc-broadcast-cut-sm border border-[var(--fc-lime)]/40 bg-[var(--fc-lime)]/[0.08] p-3">
                 <p className="fc-display-italic text-[0.62rem] uppercase tracking-[0.22em] text-[var(--fc-lime)]">
                   Caso A · prioritario

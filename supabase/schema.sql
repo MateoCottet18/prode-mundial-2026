@@ -50,6 +50,19 @@ alter table public.profiles
 -- corre al final del archivo, una vez que public.payments ya existe.
 alter table public.profiles alter column payment_status set default 'pending';
 
+-- Índices auxiliares: acelera is_admin() (partial sólo para role='admin', muy
+-- pocas filas) y queries por role del ranking/admin panel.
+create index if not exists profiles_role_admin_idx
+  on public.profiles (id)
+  where role = 'admin';
+
+create index if not exists profiles_role_idx
+  on public.profiles (role);
+
+-- Acelera filtros del admin panel ("pending_review", "approved", etc.).
+create index if not exists profiles_payment_status_idx
+  on public.profiles (payment_status);
+
 -- ---------------------------------------------------------------------------
 -- predictions
 --
@@ -71,6 +84,11 @@ create table if not exists public.predictions (
 
 -- Si la versión vieja tenía la FK a public.matches, la sacamos.
 alter table public.predictions drop constraint if exists predictions_match_id_fkey;
+
+-- Índice por match_id para recálculos por partido + lookups del bracket.
+-- (user_id ya está cubierto por la unique (user_id, match_id).)
+create index if not exists predictions_match_id_idx
+  on public.predictions (match_id);
 
 -- ---------------------------------------------------------------------------
 -- results
@@ -120,6 +138,25 @@ alter table public.payments alter column file_type drop not null;
 
 create index if not exists payments_user_id_uploaded_at_desc_idx
   on public.payments (user_id, uploaded_at desc);
+
+-- ---------------------------------------------------------------------------
+-- prediction_aggregates (view)
+--
+-- Ranking pre-agregado: en lugar de bajar ~52.000 filas al cliente (500 users
+-- × 104 matches), el cliente lee 1 fila por usuario con los totales que ya
+-- usa el ranking. Postgres calcula con los índices existentes.
+-- ---------------------------------------------------------------------------
+create or replace view public.prediction_aggregates as
+select
+  user_id,
+  coalesce(sum(points), 0)::int                          as points,
+  count(*) filter (where points = 3)::int                as exact_count,
+  count(*) filter (where points >= 1)::int               as correct_outcomes_count,
+  count(*)::int                                          as saved_count
+from public.predictions
+group by user_id;
+
+grant select on public.prediction_aggregates to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Trigger genérico para mantener updated_at coherente

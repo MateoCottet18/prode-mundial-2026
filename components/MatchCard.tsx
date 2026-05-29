@@ -8,13 +8,32 @@ import {
   parseScore,
   type ScoreInput,
 } from "@/lib/prode";
+import type { PredictionLock } from "@/lib/matchTime";
 
 type MatchCardProps = {
   match: Match;
+  /** Estado del INPUT (lo que está tipeando el usuario). Editable. */
   prediction?: ScoreInput;
+  /**
+   * Último valor confirmado en Supabase para este match. Si está presente,
+   * la card sabe que existe una fila persistida y la muestra cuando la
+   * predicción está bloqueada (kickoff o resultado), incluso si el usuario
+   * tiene cambios locales sin guardar.
+   */
+  dbPrediction?: ScoreInput;
   result?: ScoreInput;
+  /**
+   * `true` cuando hay fila en `public.predictions` para este (user, match).
+   * NO refleja el dirty state — sólo "existe en DB".
+   */
   isSaved?: boolean;
   canPredict?: boolean;
+  /**
+   * Bloqueo de la predicción. Si está `locked`, los inputs van read-only y se
+   * muestra un aviso con el motivo (kickoff ya pasó / resultado ya cargado).
+   * Cuando no se pasa, se asume desbloqueada.
+   */
+  predictionLock?: PredictionLock;
   canEditResult?: boolean;
   canManageResult?: boolean;
   hasSavedResult?: boolean;
@@ -25,6 +44,10 @@ type MatchCardProps = {
   onEditResult?: () => void;
   onDeleteResult?: () => void;
 };
+
+function scoresEqual(a?: ScoreInput, b?: ScoreInput) {
+  return (a?.home ?? "") === (b?.home ?? "") && (a?.away ?? "") === (b?.away ?? "");
+}
 
 /**
  * MatchCard FIFA Broadcast — fixture-card de transmisión:
@@ -39,9 +62,11 @@ type MatchCardProps = {
 export function MatchCard({
   match,
   prediction = emptyScore,
+  dbPrediction,
   result = emptyScore,
   isSaved = false,
   canPredict = false,
+  predictionLock,
   canEditResult = false,
   canManageResult = false,
   hasSavedResult = false,
@@ -52,16 +77,34 @@ export function MatchCard({
   onEditResult,
   onDeleteResult,
 }: MatchCardProps) {
-  const status = getPredictionStatus(prediction, result, isSaved);
-  const points = calculatePoints(prediction, result, isSaved);
+  const isLocked = predictionLock?.locked === true;
+  // Mientras la predicción esté bloqueada, los inputs y el botón "Guardar"
+  // quedan deshabilitados aunque el usuario tenga rol participante.
+  const canEditPrediction = canPredict && !isLocked;
+
+  // Cuando está bloqueada, lo que tiene que verse en pantalla es la fila
+  // confirmada en Supabase, no el draft local del usuario. Si nunca llegó a
+  // guardar, mostramos el último estado del input (que igual ya quedó
+  // congelado por el lock).
+  const displayedPrediction = isLocked ? (dbPrediction ?? prediction) : prediction;
+
+  // Para puntos / "guardada": SIEMPRE usamos el valor de DB. Si el usuario
+  // tiene cambios locales sin guardar, los puntos siguen reflejando lo que
+  // está realmente persistido.
+  const scoredPrediction = dbPrediction ?? (isSaved ? prediction : undefined);
+
+  const status = getPredictionStatus(scoredPrediction, result, isSaved);
+  const points = calculatePoints(scoredPrediction, result, isSaved);
   const hasValidPrediction = Boolean(parseScore(prediction));
   const parsedResult = parseScore(result);
   const hasResult = Boolean(parsedResult);
 
+  // "isDirty" → la fila existe en DB y el input local difiere del valor
+  // persistido. Sólo mientras la predicción está abierta tiene sentido.
+  const isDirty = isSaved && !isLocked && !scoresEqual(prediction, dbPrediction);
+
   return (
-    <article className="fc-card fc-card-accent group relative flex h-full flex-col overflow-hidden p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--fc-lime)]/30 hover:shadow-[0_22px_60px_-22px_rgba(212,255,63,0.25)]">
-      {/* Diagonales sutiles de fondo */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
+    <article className="fc-card fc-card-accent group relative flex h-full flex-col p-5 transition-colors duration-200 hover:border-[var(--fc-lime)]/25">
 
       {/* Header: tag de grupo + fecha + status pill */}
       <div className="relative flex flex-wrap items-center justify-between gap-3">
@@ -88,13 +131,7 @@ export function MatchCard({
       </div>
 
       {/* Scoreboard central */}
-      <div
-        className="fc-broadcast-cut-sm relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 border border-white/[0.06] bg-[#02050b]/85 px-4 py-5"
-        style={{
-          boxShadow: "inset 0 0 0 1px rgba(212,255,63,0.04), 0 12px 30px -16px rgba(0,0,0,0.6)",
-        }}
-      >
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
+      <div className="fc-broadcast-cut-sm relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 border border-white/[0.06] bg-[#070b13] px-4 py-5">
         <TeamSide
           name={match.homeTeam}
           manual={match.homeTeamSource === "manual"}
@@ -117,7 +154,9 @@ export function MatchCard({
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-cyan)]" />
             Tu predicción
           </p>
-          {isSaved ? (
+          {isDirty ? (
+            <span className="fc-chip fc-chip-yellow">Cambios sin guardar</span>
+          ) : isSaved ? (
             <span className="fc-chip fc-chip-lime">Guardada</span>
           ) : hasValidPrediction ? (
             <span className="fc-chip fc-chip-yellow">Sin guardar</span>
@@ -128,36 +167,49 @@ export function MatchCard({
         <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <ScoreField
             label={`Predicción de ${match.homeTeam}`}
-            value={prediction.home}
-            disabled={!canPredict}
+            value={displayedPrediction.home}
+            disabled={!canEditPrediction}
             onChange={(value) => onPredictionChange?.("home", value)}
           />
           <span className="fc-display-italic text-2xl text-slate-500">–</span>
           <ScoreField
             label={`Predicción de ${match.awayTeam}`}
-            value={prediction.away}
-            disabled={!canPredict}
+            value={displayedPrediction.away}
+            disabled={!canEditPrediction}
             onChange={(value) => onPredictionChange?.("away", value)}
           />
         </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={onSavePrediction}
-            disabled={!canPredict || !hasValidPrediction}
-            className="fc-cta-fifa"
-            style={
-              {
-                background:
-                  "linear-gradient(95deg, #38d4ff 0%, #d4ff3f 50%, #38d4ff 100%)",
-                "--fc-cta-shadow": "rgba(56,212,255,0.55)",
-              } as React.CSSProperties
-            }
-          >
-            <span aria-hidden>▸</span> Guardar predicción
-          </button>
-          {hasResult && points !== null ? <PointsBadge points={points} /> : null}
-        </div>
+        {isLocked ? (
+          <div className="mt-3 flex items-center gap-2 border-l-2 border-[var(--fc-yellow)]/60 bg-[var(--fc-yellow)]/[0.06] px-3 py-2 text-xs text-[var(--fc-yellow)]">
+            <span aria-hidden>🔒</span>
+            <span>{predictionLock?.locked ? predictionLock.message : ""}</span>
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={onSavePrediction}
+              disabled={!canEditPrediction || !hasValidPrediction || (isSaved && !isDirty)}
+              className="fc-cta-fifa"
+              style={
+                {
+                  background:
+                    "linear-gradient(95deg, #38d4ff 0%, #d4ff3f 50%, #38d4ff 100%)",
+                  "--fc-cta-shadow": "rgba(56,212,255,0.55)",
+                } as React.CSSProperties
+              }
+            >
+              <span aria-hidden>▸</span>{" "}
+              {isSaved ? "Guardar cambios" : "Guardar predicción"}
+            </button>
+            {hasResult && points !== null ? <PointsBadge points={points} /> : null}
+          </div>
+        )}
+        {isLocked && hasResult && points !== null ? (
+          <div className="mt-2 flex justify-end">
+            <PointsBadge points={points} />
+          </div>
+        ) : null}
       </div>
 
       {/* RESULTADO OFICIAL */}
@@ -221,21 +273,26 @@ export function MatchCard({
 function TeamSide({
   name,
   manual = false,
-  alignRight = false,
 }: {
   name: string;
   manual?: boolean;
+  /** No usado en variante stack, pero queda para no romper llamadas. */
   alignRight?: boolean;
 }) {
+  // Bandera como elemento PRINCIPAL: grande arriba, nombre chico abajo.
+  // Pattern FIFA / OneFootball: el reconocimiento es por bandera primero.
   return (
-    <div className={`relative min-w-0 ${alignRight ? "text-right" : ""}`}>
-      <p className="fc-display-italic text-[1rem] uppercase tracking-[0.04em] text-white">
-        <CountryWithFlag name={name} size={26} alignRight={alignRight} truncate />
-      </p>
+    <div className="relative flex min-w-0 flex-col items-center gap-1">
+      <CountryWithFlag
+        name={name}
+        size={56}
+        variant="stack"
+        nameClassName="text-[0.72rem]"
+      />
       {manual ? (
         <span
           title="Definido por el admin (override manual)"
-          className="fc-chip fc-chip-yellow mt-2"
+          className="fc-chip fc-chip-yellow"
         >
           Manual
         </span>
@@ -352,7 +409,7 @@ function AdminBtn({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`fc-broadcast-cut-sm fc-display-italic border px-4 py-2 text-[0.7rem] uppercase tracking-[0.18em] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 ${cls}`}
+      className={`fc-broadcast-cut-sm fc-display-italic border px-4 py-2 text-[0.7rem] uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${cls}`}
     >
       {children}
     </button>

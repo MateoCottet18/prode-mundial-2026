@@ -51,6 +51,14 @@ create trigger matches_touch_updated_at
   before update on public.matches
   for each row execute function public.touch_updated_at();
 
+-- Índices: la UI filtra por stage (grupos/16avos/…) y ordena por matchday.
+create index if not exists matches_stage_idx
+  on public.matches (stage);
+
+create index if not exists matches_matchday_idx
+  on public.matches (matchday)
+  where matchday is not null;
+
 -- ---------------------------------------------------------------------------
 -- RLS
 -- ---------------------------------------------------------------------------

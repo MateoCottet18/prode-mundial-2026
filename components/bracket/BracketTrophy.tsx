@@ -7,15 +7,18 @@ import type { ResultsByMatch, ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
 import { BracketMatch } from "@/components/bracket/BracketMatch";
 import type { BracketMode } from "@/types/bracket";
+import type { PredictionLock } from "@/lib/matchTime";
 
 type Props = {
   finalMatch: Match;
   thirdPlaceMatch: Match;
   results: ResultsByMatch;
   predictions: Record<string, ScoreInput>;
+  dbPredictions?: Record<string, ScoreInput>;
   savedPredictions: Record<string, boolean>;
   mode: BracketMode;
   canPredict?: boolean;
+  getPredictionLock?: (match: Match) => PredictionLock;
   onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
@@ -34,9 +37,11 @@ export function BracketTrophy({
   thirdPlaceMatch,
   results,
   predictions,
+  dbPredictions,
   savedPredictions,
   mode,
   canPredict = false,
+  getPredictionLock,
   onSaveResult,
   onDeleteResult,
   onPredictionChange,
@@ -47,16 +52,7 @@ export function BracketTrophy({
 
   return (
     <div className="flex w-[260px] shrink-0 flex-col items-center justify-center gap-4 px-2">
-      <div
-        className="fc-broadcast-cut relative flex flex-col items-center gap-2 overflow-hidden border border-[var(--fc-yellow)]/40 bg-black p-5 text-center"
-        style={{
-          boxShadow:
-            "inset 0 0 0 1px rgba(255,216,77,0.18), 0 28px 80px -22px rgba(255,216,77,0.4)",
-        }}
-      >
-        {/* Halftone overlay (encima del negro, detrás de la copa) */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
-        {/* FIFA flag-stripe arriba */}
+      <div className="fc-broadcast-cut relative flex flex-col items-center gap-2 overflow-hidden border border-[var(--fc-yellow)]/30 bg-black p-5 text-center">
         <div aria-hidden className="absolute inset-x-4 top-0 h-[2px] fc-flag-stripe opacity-80" />
 
         {/*
@@ -71,7 +67,7 @@ export function BracketTrophy({
             width={200}
             height={200}
             priority
-            className="h-auto w-[180px] drop-shadow-[0_0_28px_rgba(255,216,77,0.45)]"
+            className="h-auto w-[180px]"
           />
         </div>
 
@@ -79,9 +75,14 @@ export function BracketTrophy({
           Campeón
         </p>
         {champion ? (
-          <p className="fc-display-italic relative z-10 flex items-center justify-center gap-2 text-lg uppercase tracking-[0.04em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
-            <CountryWithFlag name={champion} size={28} />
-          </p>
+          <div className="relative z-10 flex flex-col items-center gap-2">
+            <CountryWithFlag
+              name={champion}
+              size={64}
+              variant="stack"
+              nameClassName="fc-display-italic text-base uppercase tracking-[0.04em] text-white"
+            />
+          </div>
         ) : (
           <p className="fc-display-italic relative z-10 text-sm uppercase tracking-[0.22em] text-slate-300">
             Por definirse
@@ -93,9 +94,11 @@ export function BracketTrophy({
         match={finalMatch}
         result={results[finalMatch.id]}
         prediction={predictions[finalMatch.id]}
+        dbPrediction={dbPredictions?.[finalMatch.id]}
         isPredictionSaved={Boolean(savedPredictions[finalMatch.id])}
         mode={mode}
         canPredict={canPredict}
+        predictionLock={getPredictionLock?.(finalMatch)}
         allResults={results}
         highlight
         onSaveResult={onSaveResult}
@@ -112,9 +115,11 @@ export function BracketTrophy({
           match={thirdPlaceMatch}
           result={results[thirdPlaceMatch.id]}
           prediction={predictions[thirdPlaceMatch.id]}
+          dbPrediction={dbPredictions?.[thirdPlaceMatch.id]}
           isPredictionSaved={Boolean(savedPredictions[thirdPlaceMatch.id])}
           mode={mode}
           canPredict={canPredict}
+          predictionLock={getPredictionLock?.(thirdPlaceMatch)}
           allResults={results}
           onSaveResult={onSaveResult}
           onDeleteResult={onDeleteResult}

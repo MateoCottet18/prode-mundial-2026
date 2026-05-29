@@ -58,29 +58,20 @@ export function PageHeader({
   const style = toneStyles[tone];
 
   return (
-    <header className="relative mb-8 overflow-hidden">
-      {/* Banda lateral diagonal — bloque tonal estilo lower-third */}
-      <div
-        aria-hidden
-        className={`pointer-events-none absolute -left-12 top-1/2 hidden h-[200%] w-32 -translate-y-1/2 opacity-[0.07] sm:block ${style.dot}`}
-        style={{ clipPath: "polygon(50% 0, 100% 0, 50% 100%, 0 100%)" }}
-      />
-      {/* FIFA flag-stripe acento abajo */}
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] fc-flag-stripe opacity-70" />
+    <header className="relative mb-7">
+      {/* Línea finita del color del tono — separador limpio, sin halo. */}
+      <div aria-hidden className={`mb-4 h-[2px] w-12 ${style.dot}`} />
 
-      <div className="relative flex flex-col gap-6 pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-5 border-b border-white/[0.06] pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <span aria-hidden className={`h-3 w-3 rotate-45 ${style.dot} shadow-[0_0_18px_currentColor] ${style.text}`} />
-            <p className={`fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] ${style.text}`}>
-              {overline}
-            </p>
-          </div>
-          <h1 className="mt-3 fc-display-italic text-[2rem] uppercase leading-[0.92] tracking-[0.005em] text-white sm:text-5xl lg:text-[3.6rem]">
+          <p className={`fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] ${style.text}`}>
+            {overline}
+          </p>
+          <h1 className="mt-2 fc-display-italic text-[1.85rem] uppercase leading-[0.95] tracking-[0.005em] text-white sm:text-4xl lg:text-[3rem]">
             {title}
           </h1>
           {description ? (
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
               {description}
             </p>
           ) : null}

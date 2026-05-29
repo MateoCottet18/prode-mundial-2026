@@ -6,22 +6,37 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
 import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
+import { useRankingAggregates } from "@/hooks/useRankingAggregates";
 import { useUsers } from "@/hooks/useUsers";
 import { ProfilePredictionCard } from "@/components/ProfilePredictionCard";
 import { AdminOverdueAlert } from "@/components/AdminOverdueAlert";
 import { AdminLoadedResultCard } from "@/components/AdminLoadedResultCard";
 import { PageHeader } from "@/components/PageHeader";
 import { calculatePoints, getParticipantUsers } from "@/lib/prode";
-import { buildRanking } from "@/lib/ranking";
+import {
+  buildRanking,
+  buildRankingFromAggregates,
+  type RankingEntry,
+} from "@/lib/ranking";
 import { getAllGeneratedMatches } from "@/lib/standings";
 import { getMatchesWithResults, getOverdueMatches } from "@/lib/matchTime";
 
 export default function PerfilPage() {
   const { user, isReady: isAuthReady } = useAuth();
   const { matches } = useMatches();
-  const { predictions, savedPredictions, results, isReady: isStoreReady } = useProdeStore();
+  // Sólo necesitamos las predicciones del usuario logueado para mostrar la
+  // grilla "tus predicciones". El ranking sale de los agregados pre-calculados
+  // en SQL, así no bajamos las predicciones de los otros 499 participantes.
+  const {
+    predictions,
+    dbPredictions,
+    savedPredictions,
+    results,
+    isReady: isStoreReady,
+  } = useProdeStore(user?.userId ?? undefined);
   const { registeredUsers, isReady: isUsersReady } = useUsers();
   const { overridesMap } = useQualificationOverrides();
+  const { aggregates: rankingAggregates } = useRankingAggregates();
 
   const isAdmin = user?.role === "admin";
   const allMatches = useMemo(
@@ -75,11 +90,13 @@ export default function PerfilPage() {
       userKey={user.userId ?? user.username ?? ""}
       registeredUsers={registeredUsers}
       predictions={predictions}
+      dbPredictions={dbPredictions}
       savedPredictions={savedPredictions}
       results={results}
       allMatches={allMatches}
       matchesList={matches}
       overridesMap={overridesMap}
+      rankingAggregates={rankingAggregates}
       isStoreReady={isStoreReady}
       isUsersReady={isUsersReady}
     />
@@ -97,11 +114,13 @@ type ParticipantProfileViewProps = {
   userKey: string;
   registeredUsers: ReturnType<typeof useUsers>["registeredUsers"];
   predictions: ReturnType<typeof useProdeStore>["predictions"];
+  dbPredictions: ReturnType<typeof useProdeStore>["dbPredictions"];
   savedPredictions: ReturnType<typeof useProdeStore>["savedPredictions"];
   results: ReturnType<typeof useProdeStore>["results"];
   allMatches: ReturnType<typeof getAllGeneratedMatches>;
   matchesList: ReturnType<typeof useMatches>["matches"];
   overridesMap: ReturnType<typeof useQualificationOverrides>["overridesMap"];
+  rankingAggregates: ReturnType<typeof useRankingAggregates>["aggregates"];
   isStoreReady: boolean;
   isUsersReady: boolean;
 };
@@ -113,26 +132,41 @@ function ParticipantProfileView({
   userKey,
   registeredUsers,
   predictions,
+  dbPredictions,
   savedPredictions,
   results,
   allMatches,
   matchesList,
   overridesMap,
+  rankingAggregates,
   isStoreReady,
   isUsersReady,
 }: ParticipantProfileViewProps) {
-  const ranking = useMemo(
-    () =>
-      buildRanking(
-        registeredUsers,
-        predictions,
-        savedPredictions,
-        results,
-        matchesList,
-        overridesMap,
-      ),
-    [registeredUsers, predictions, savedPredictions, results, matchesList, overridesMap],
-  );
+  // Ranking del lado SQL: 1 fila por usuario, sin recorrer 52k predicciones.
+  // Si la view aún no respondió o no existe (deploy parcial), caemos al cálculo
+  // crudo — pero como `dbPredictions` ahora sólo trae al user logueado, los
+  // otros aparecen en 0 hasta que llega el agregado.
+  const ranking: RankingEntry[] = useMemo(() => {
+    if (rankingAggregates) {
+      return buildRankingFromAggregates(registeredUsers, rankingAggregates);
+    }
+    return buildRanking(
+      registeredUsers,
+      dbPredictions,
+      savedPredictions,
+      results,
+      matchesList,
+      overridesMap,
+    );
+  }, [
+    rankingAggregates,
+    registeredUsers,
+    dbPredictions,
+    savedPredictions,
+    results,
+    matchesList,
+    overridesMap,
+  ]);
 
   const myEntry = useMemo(
     () => ranking.find((entry) => entry.username === userUsername),
@@ -151,15 +185,25 @@ function ParticipantProfileView({
 
     return allMatches
       .map((match) => {
-        const prediction = predictions[userKey]?.[match.id];
+        // El input local sirve para detectar predicciones que el usuario está
+        // armando pero todavía no guardó. Para puntos usamos `dbPredictions`,
+        // que es lo realmente persistido.
+        const draft = predictions[userKey]?.[match.id];
+        const persisted = dbPredictions[userKey]?.[match.id];
         const isSaved = Boolean(savedPredictions[userKey]?.[match.id]);
         const result = results[match.id];
-        const points = calculatePoints(prediction, result, isSaved);
+        const points = calculatePoints(persisted, result, isSaved);
 
-        return { match, prediction, result, isSaved, points };
+        return {
+          match,
+          prediction: persisted ?? draft,
+          result,
+          isSaved,
+          points,
+        };
       })
       .filter((row) => row.isSaved || row.prediction?.home || row.prediction?.away);
-  }, [allMatches, predictions, savedPredictions, results, userKey]);
+  }, [allMatches, predictions, dbPredictions, savedPredictions, results, userKey]);
 
   const savedCount = userPredictions.filter((row) => row.isSaved).length;
   const scoredCount = userPredictions.filter((row) => row.points !== null).length;
@@ -205,8 +249,8 @@ function ParticipantProfileView({
 
       <section className="mt-10">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-cyan)] shadow-[0_0_18px_rgba(56,212,255,0.55)]" />
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="h-2 w-2 rotate-45 bg-[var(--fc-cyan)]" />
             <div>
               <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-cyan)]">
                 Mis predicciones
@@ -316,8 +360,8 @@ function AdminProfileView({
 
       <section className="mt-10">
         <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="h-3 w-3 rotate-45 bg-[var(--fc-lime)] shadow-[0_0_18px_rgba(212,255,63,0.55)]" />
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="h-2 w-2 rotate-45 bg-[var(--fc-lime)]" />
             <div>
               <p className="fc-display-italic text-[0.7rem] uppercase tracking-[0.32em] text-[var(--fc-lime)]">
                 Resultados cargados
@@ -378,9 +422,9 @@ function Stat({
 }) {
   const palette =
     tone === "danger"
-      ? "border-[var(--fc-magenta)]/40 bg-[var(--fc-magenta)]/[0.06]"
+      ? "border-[var(--fc-magenta)]/30 bg-[var(--fc-magenta)]/[0.05]"
       : highlight
-        ? "border-[var(--fc-lime)]/40 bg-[var(--fc-lime)]/[0.06] fc-glow-lime"
+        ? "border-[var(--fc-lime)]/30 bg-[var(--fc-lime)]/[0.05]"
         : "border-white/[0.07] bg-white/[0.03]";
   const dot =
     tone === "danger"
@@ -396,17 +440,14 @@ function Stat({
         : "text-white";
 
   return (
-    <div
-      className={`fc-broadcast-cut-sm relative flex flex-col gap-2 overflow-hidden border p-5 ${palette}`}
-    >
-      <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-25" />
-      <div className="relative flex items-center gap-2">
+    <div className={`fc-broadcast-cut-sm relative flex flex-col gap-2 border p-5 ${palette}`}>
+      <div className="flex items-center gap-2">
         <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dot}`} />
         <p className="fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-400">
           {label}
         </p>
       </div>
-      <p className={`fc-stencil relative text-4xl ${valueColor}`}>{value}</p>
+      <p className={`fc-stencil text-4xl ${valueColor}`}>{value}</p>
     </div>
   );
 }

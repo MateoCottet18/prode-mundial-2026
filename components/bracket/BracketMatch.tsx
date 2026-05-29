@@ -6,11 +6,15 @@ import type { Match } from "@/data/matches";
 import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
 import type { BracketMode } from "@/types/bracket";
+import type { PredictionLock } from "@/lib/matchTime";
 
 type Props = {
   match: Match;
   result?: ScoreInput;
+  /** Estado del input local del usuario (lo que está tipeando). */
   prediction?: ScoreInput;
+  /** Último valor confirmado en Supabase. Usado en read-only / locked. */
+  dbPrediction?: ScoreInput;
   isPredictionSaved?: boolean;
   mode: BracketMode;
   /**
@@ -19,6 +23,12 @@ type Props = {
    * En modo "admin" este flag se ignora: el admin nunca carga predicciones.
    */
   canPredict?: boolean;
+  /**
+   * Bloqueo de la predicción (kickoff ya pasó o resultado cargado). Si está
+   * locked, el `PredictionEditor` se reemplaza por un footer read-only con
+   * el motivo. Sólo aplica al modo participante.
+   */
+  predictionLock?: PredictionLock;
   /** Resultados completos de toda la app (sirven para detectar al ganador). */
   allResults: Record<string, ScoreInput>;
   /** Si true, el match es la final/tercer puesto (renderizado más prominente). */
@@ -28,6 +38,10 @@ type Props = {
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
 };
+
+function scoresEqual(a?: ScoreInput, b?: ScoreInput) {
+  return (a?.home ?? "") === (b?.home ?? "") && (a?.away ?? "") === (b?.away ?? "");
+}
 
 /**
  * Tarjeta compacta de un partido eliminatorio para el bracket.
@@ -44,9 +58,11 @@ export function BracketMatch({
   match,
   result,
   prediction,
+  dbPrediction,
   isPredictionSaved = false,
   mode,
   canPredict = false,
+  predictionLock,
   allResults,
   highlight = false,
   onSaveResult,
@@ -55,12 +71,20 @@ export function BracketMatch({
   onSavePrediction,
 }: Props) {
   const isAdmin = mode === "admin";
-  const showPredictionEditor = !isAdmin && canPredict;
+  const isLocked = predictionLock?.locked === true;
+  // El editor sólo aparece para participantes que tienen permiso Y cuyo lock
+  // está abierto. Si el partido ya empezó o tiene resultado, mostramos la
+  // predicción en modo solo lectura.
+  const showPredictionEditor = !isAdmin && canPredict && !isLocked;
 
   const winner = getMatchWinner(match, allResults);
-  const points = calculatePoints(prediction, result, isPredictionSaved);
+  // Para puntos / view-mode usamos siempre el valor de DB; el input local es
+  // sólo para edición.
+  const persistedPrediction = dbPrediction ?? (isPredictionSaved ? prediction : undefined);
+  const points = calculatePoints(persistedPrediction, result, isPredictionSaved);
   const hasResult = Boolean(parseScore(result));
-  const hasPrediction = Boolean(parseScore(prediction));
+  const isDirty =
+    isPredictionSaved && !isLocked && !scoresEqual(prediction, dbPrediction);
   const isManual =
     match.homeTeamSource === "manual" || match.awayTeamSource === "manual";
 
@@ -105,7 +129,7 @@ export function BracketMatch({
   };
 
   const handleSavePrediction = async () => {
-    if (!onSavePrediction || !hasPrediction) return;
+    if (!onSavePrediction || !parseScore(prediction)) return;
     setSavingPrediction(true);
     try {
       await onSavePrediction(match.id);
@@ -119,17 +143,18 @@ export function BracketMatch({
 
   return (
     <article
-      className={`group relative w-[240px] overflow-hidden rounded-2xl border bg-slate-950/80 px-3 py-2.5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/40 hover:shadow-[0_22px_60px_-22px_rgba(74,222,128,0.45)] ${
+      className={`group relative w-[240px] rounded-xl border bg-[#0a1018] px-3 py-2.5 transition-colors duration-200 hover:border-emerald-300/30 ${
         highlight
-          ? "border-emerald-300/40 bg-gradient-to-br from-emerald-300/10 via-slate-950/85 to-lime-300/10 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.25),0_24px_60px_-28px_rgba(34,197,94,0.55)]"
-          : "border-white/[0.07] shadow-lg shadow-black/30"
+          ? "border-emerald-300/35 bg-[#0c1410]"
+          : "border-white/[0.07]"
       }`}
     >
-      {/* Acento LED superior */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,_transparent_0%,_rgba(74,222,128,0.45)_50%,_transparent_100%)] opacity-60"
-      />
+      {highlight ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-3 top-0 h-px bg-emerald-300/40"
+        />
+      ) : null}
       <div className="fc-display flex items-center justify-between gap-2 text-[0.6rem] uppercase tracking-[0.18em] text-slate-400">
         <span>{stageLabel(match.id, match.stage)}</span>
         <div className="flex items-center gap-1">
@@ -178,7 +203,7 @@ export function BracketMatch({
             type="button"
             onClick={handleSave}
             disabled={!draftValid || saving || !draftDiffers}
-            className="fc-display rounded-lg bg-emerald-300 px-3 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-slate-950 shadow-[0_8px_18px_-8px_rgba(74,222,128,0.5)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            className="fc-display rounded-md bg-emerald-300 px-3 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-slate-950 transition-colors hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Guardando…" : hasResult ? "Actualizar" : "Guardar"}
           </button>
@@ -187,7 +212,7 @@ export function BracketMatch({
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="fc-display rounded-lg border border-red-300/30 bg-red-300/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-red-100 transition hover:-translate-y-0.5 hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-50"
+              className="fc-display rounded-md border border-red-300/30 bg-red-300/10 px-3 py-1 text-[0.65rem] uppercase tracking-[0.16em] text-red-100 transition-colors hover:bg-red-300/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Borrar
             </button>
@@ -198,6 +223,7 @@ export function BracketMatch({
           match={match}
           prediction={prediction}
           isPredictionSaved={isPredictionSaved}
+          isDirty={isDirty}
           hasResult={hasResult}
           points={points}
           saving={savingPrediction}
@@ -207,9 +233,14 @@ export function BracketMatch({
       ) : (
         <ViewModeFooter
           hasResult={hasResult}
-          prediction={prediction}
+          prediction={persistedPrediction}
           isPredictionSaved={isPredictionSaved}
           points={points}
+          lockMessage={
+            !isAdmin && canPredict && isLocked && predictionLock?.locked
+              ? predictionLock.message
+              : null
+          }
         />
       )}
     </article>
@@ -220,6 +251,7 @@ type PredictionEditorProps = {
   match: Match;
   prediction?: ScoreInput;
   isPredictionSaved: boolean;
+  isDirty: boolean;
   hasResult: boolean;
   points: number | null;
   saving: boolean;
@@ -231,6 +263,7 @@ function PredictionEditor({
   match,
   prediction,
   isPredictionSaved,
+  isDirty,
   hasResult,
   points,
   saving,
@@ -240,6 +273,7 @@ function PredictionEditor({
   const homeValue = prediction?.home ?? "";
   const awayValue = prediction?.away ?? "";
   const draftValid = Boolean(parseScore({ home: homeValue, away: awayValue }));
+  const canSave = draftValid && !saving && (isDirty || !isPredictionSaved);
 
   return (
     <div className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.05] px-2 py-1.5">
@@ -278,20 +312,37 @@ function PredictionEditor({
           <button
             type="button"
             onClick={onSave}
-            disabled={!draftValid || saving}
-            className="fc-display rounded-lg bg-cyan-300 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] text-slate-950 shadow-[0_8px_18px_-8px_rgba(56,189,248,0.55)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            disabled={!canSave}
+            title={
+              isDirty
+                ? "Guardar cambios"
+                : isPredictionSaved
+                  ? "Predicción guardada"
+                  : "Guardar predicción"
+            }
+            className="fc-display rounded-md bg-cyan-300 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.12em] text-slate-950 transition-colors hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? "…" : "OK"}
+            {saving ? "…" : isDirty ? "Guardar" : isPredictionSaved ? "OK" : "Guardar"}
           </button>
         </div>
       </div>
       <div className="fc-display mt-1 flex items-center justify-between gap-1 text-[0.6rem] tabular-nums">
         <span
           className={`uppercase tracking-[0.12em] ${
-            isPredictionSaved ? "text-emerald-200" : "text-amber-200"
+            isDirty
+              ? "text-amber-200"
+              : isPredictionSaved
+                ? "text-emerald-200"
+                : "text-amber-200"
           }`}
         >
-          {isPredictionSaved ? "Guardada" : draftValid ? "Sin guardar" : "Pendiente"}
+          {isDirty
+            ? "Cambios sin guardar"
+            : isPredictionSaved
+              ? "Guardada"
+              : draftValid
+                ? "Sin guardar"
+                : "Pendiente"}
         </span>
         {hasResult && points !== null ? (
           <span
@@ -316,37 +367,49 @@ function ViewModeFooter({
   prediction,
   isPredictionSaved,
   points,
+  lockMessage,
 }: {
   hasResult: boolean;
   prediction?: ScoreInput;
   isPredictionSaved: boolean;
   points: number | null;
+  lockMessage?: string | null;
 }) {
   const hasPrediction = parseScore(prediction);
-  if (!hasResult && !hasPrediction) {
+  if (!hasResult && !hasPrediction && !lockMessage) {
     return null;
   }
 
   return (
-    <div className="fc-display mt-2 flex flex-wrap items-center justify-between gap-1.5 text-[0.65rem] tabular-nums">
-      {hasPrediction ? (
-        <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 uppercase tracking-[0.12em] text-cyan-100">
-          Tu: {prediction?.home ?? "?"}–{prediction?.away ?? "?"}
-          {!isPredictionSaved ? " · sin guardar" : ""}
-        </span>
+    <div className="mt-2 space-y-1.5">
+      {hasPrediction || (hasResult && points !== null) ? (
+        <div className="fc-display flex flex-wrap items-center justify-between gap-1.5 text-[0.65rem] tabular-nums">
+          {hasPrediction ? (
+            <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 uppercase tracking-[0.12em] text-cyan-100">
+              Tu: {prediction?.home ?? "?"}–{prediction?.away ?? "?"}
+              {!isPredictionSaved ? " · sin guardar" : ""}
+            </span>
+          ) : null}
+          {hasResult && points !== null ? (
+            <span
+              className={`rounded-full px-2 py-0.5 uppercase tracking-[0.12em] ${
+                points === 3
+                  ? "border border-emerald-300/40 bg-emerald-300/10 text-emerald-100"
+                  : points === 1
+                    ? "border border-amber-300/40 bg-amber-300/10 text-amber-100"
+                    : "border border-slate-500/40 bg-slate-500/10 text-slate-300"
+              }`}
+            >
+              {points} pts
+            </span>
+          ) : null}
+        </div>
       ) : null}
-      {hasResult && points !== null ? (
-        <span
-          className={`rounded-full px-2 py-0.5 uppercase tracking-[0.12em] ${
-            points === 3
-              ? "border border-emerald-300/40 bg-emerald-300/10 text-emerald-100"
-              : points === 1
-                ? "border border-amber-300/40 bg-amber-300/10 text-amber-100"
-                : "border border-slate-500/40 bg-slate-500/10 text-slate-300"
-          }`}
-        >
-          {points} pts
-        </span>
+      {lockMessage ? (
+        <p className="flex items-center gap-1.5 border-l-2 border-amber-300/60 bg-amber-300/[0.06] px-2 py-1 text-[0.6rem] uppercase tracking-[0.12em] text-amber-100">
+          <span aria-hidden>🔒</span>
+          <span className="normal-case tracking-normal">{lockMessage}</span>
+        </p>
       ) : null}
     </div>
   );
@@ -378,14 +441,14 @@ function TeamRow({
       }`}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {isWinner ? (
             <span
               aria-hidden
-              className="h-1 w-1 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_6px_rgba(74,222,128,0.6)]"
+              className="h-1 w-1 shrink-0 rounded-full bg-emerald-300"
             />
           ) : null}
-          <CountryWithFlag name={name} size={18} truncate />
+          <CountryWithFlag name={name} size={26} truncate />
           {manual ? (
             <span
               aria-hidden

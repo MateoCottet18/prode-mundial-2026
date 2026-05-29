@@ -7,6 +7,7 @@ import {
   type ResultsByMatch,
   type SavedPredictionsByUser,
 } from "@/lib/prode";
+import type { PredictionAggregate } from "@/lib/services/predictionService";
 import {
   getAllGeneratedMatches,
   type QualificationOverrides,
@@ -26,21 +27,109 @@ export type RankingEntry = {
    * Es decir: cualquier acierto, incluyendo los exactos.
    */
   correctOutcomesCount: number;
+  /**
+   * Timestamp de inscripción del participante. Se usa SOLO para desempate
+   * en `sortAndRank`. No se muestra en la UI.
+   */
+  createdAt?: string;
 };
+
+/**
+ * Aplica el orden oficial de desempate al ranking ya con stats por usuario.
+ *
+ * Orden definitivo (siempre hay UN ganador):
+ *   1. points                desc (mayor puntaje gana)
+ *   2. exactCount            desc (más resultados exactos)
+ *   3. correctOutcomesCount  desc (más aciertos totales)
+ *   4. createdAt             asc  (orden de inscripción: el más viejo gana)
+ *   5. username              asc  (último fallback estable si createdAt
+ *                                  faltase o coincidiera al microsegundo)
+ *
+ * Como el `createdAt` es un timestamp con precisión de microsegundos en
+ * Postgres, dos participantes nunca van a empatar al final: el ranking
+ * SIEMPRE define un ganador único. Por eso `rank` es simplemente
+ * `index + 1` — ya no hay posiciones compartidas.
+ */
+function sortAndRank(
+  entries: Omit<RankingEntry, "rank">[],
+): RankingEntry[] {
+  return entries
+    .sort(
+      (a, b) =>
+        b.points - a.points ||
+        b.exactCount - a.exactCount ||
+        b.correctOutcomesCount - a.correctOutcomesCount ||
+        compareCreatedAtAsc(a.createdAt, b.createdAt) ||
+        a.username.localeCompare(b.username),
+    )
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+/**
+ * Compara `createdAt` ascendente (el más viejo primero). Las entries sin
+ * `createdAt` se mandan al final — son usuarios legacy / fallback localStorage
+ * que no tienen timestamp de Supabase.
+ */
+function compareCreatedAtAsc(a?: string, b?: string): number {
+  if (a && b) return a.localeCompare(b);
+  if (a) return -1;
+  if (b) return 1;
+  return 0;
+}
+
+/**
+ * Construye el ranking a partir de los agregados pre-calculados que devuelve
+ * `public.prediction_aggregates` (view).
+ *
+ * Esta es la fast-path para 500+ usuarios: el cliente no recorre 52k filas
+ * de predicciones, sólo hace lookup por userId en un mapa de 500 entries.
+ *
+ * Si un participante no tiene fila en los agregados (todavía no guardó
+ * ninguna predicción) se incluye con todo en 0 — así sigue apareciendo en
+ * la tabla con su nombre.
+ */
+export function buildRankingFromAggregates(
+  registeredUsers: AppUser[],
+  aggregates: PredictionAggregate[],
+): RankingEntry[] {
+  const byUserId = new Map<string, PredictionAggregate>();
+  for (const agg of aggregates) {
+    byUserId.set(agg.userId, agg);
+  }
+
+  const entries = getParticipantUsers(registeredUsers)
+    .filter((participant) => participant.role !== "admin")
+    .map((participant) => {
+      const userKey = participant.id ?? participant.username;
+      const agg = participant.id ? byUserId.get(participant.id) : undefined;
+      return {
+        userKey,
+        username: participant.username,
+        displayName: participant.displayName,
+        points: agg?.points ?? 0,
+        savedCount: agg?.savedCount ?? 0,
+        exactCount: agg?.exactCount ?? 0,
+        correctOutcomesCount: agg?.correctOutcomesCount ?? 0,
+        createdAt: participant.createdAt,
+      } satisfies Omit<RankingEntry, "rank">;
+    });
+
+  return sortAndRank(entries);
+}
 
 /**
  * Construye el ranking de participantes con criterio oficial de desempate.
  *
- * Orden:
- *   1. points         desc (mayor puntaje gana)
- *   2. exactCount     desc (más resultados exactos)
- *   3. correctOutcomesCount desc (más aciertos totales)
- *   4. username       asc  (orden alfabético estable)
+ * Orden definitivo (siempre define un único ganador):
+ *   1. points                desc
+ *   2. exactCount            desc
+ *   3. correctOutcomesCount  desc
+ *   4. createdAt             asc  (orden de inscripción)
+ *   5. username              asc  (fallback)
  *
- * El cálculo de `points` no cambia: sigue usando `getUserPoints` /
- * `calculatePoints` (3 / 1 / 0). Lo único nuevo es que recolectamos las
- * estadísticas extras `exactCount` y `correctOutcomesCount` recorriendo los
- * mismos matches una sola vez, así no duplicamos trabajo.
+ * El cálculo de `points` no cambia: sigue usando `calculatePoints` (3/1/0).
+ * Las estadísticas extras se recolectan recorriendo los matches una sola
+ * vez para no duplicar trabajo.
  */
 export function buildRanking(
   registeredUsers: AppUser[],
@@ -53,11 +142,11 @@ export function buildRanking(
   const allMatches = getAllGeneratedMatches(results, matchesList, overrides);
   const matchIds = allMatches.map((match) => match.id);
 
-  return getParticipantUsers(registeredUsers)
-    // Defensa adicional: el ranking nunca incluye admins.
-    // `getParticipantUsers` ya filtra por role === "participante", pero
-    // dejamos este `.filter` explícito para que no haya forma de que un
-    // refactor accidental haga aparecer al admin en la tabla pública.
+  // Defensa adicional: el ranking nunca incluye admins.
+  // `getParticipantUsers` ya filtra por role === "participante", pero
+  // dejamos este `.filter` explícito para que no haya forma de que un
+  // refactor accidental haga aparecer al admin en la tabla pública.
+  const entries: Omit<RankingEntry, "rank">[] = getParticipantUsers(registeredUsers)
     .filter((participant) => participant.role !== "admin")
     .map((participant) => {
       const userKey = participant.id ?? participant.username;
@@ -100,28 +189,9 @@ export function buildRanking(
         savedCount,
         exactCount,
         correctOutcomesCount,
+        createdAt: participant.createdAt,
       };
-    })
-    .sort(
-      (a, b) =>
-        b.points - a.points ||
-        b.exactCount - a.exactCount ||
-        b.correctOutcomesCount - a.correctOutcomesCount ||
-        a.username.localeCompare(b.username),
-    )
-    .reduce<RankingEntry[]>((acc, entry, index) => {
-      // Compartimos posición si la entrada anterior empata en puntos +
-      // exactos + aciertos (regla: "se compartirá la posición hasta que
-      // exista otro criterio"). Si difieren en cualquier criterio, ocupan
-      // posiciones distintas.
-      const prev = acc[index - 1];
-      const tied =
-        prev !== undefined &&
-        prev.points === entry.points &&
-        prev.exactCount === entry.exactCount &&
-        prev.correctOutcomesCount === entry.correctOutcomesCount;
-      const rank = tied ? prev.rank : index + 1;
-      acc.push({ ...entry, rank });
-      return acc;
-    }, []);
+    });
+
+  return sortAndRank(entries);
 }

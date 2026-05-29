@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { KnockoutBracket } from "@/components/bracket/KnockoutBracket";
+import { CountryWithFlag } from "@/components/CountryWithFlag";
 import { PageHeader } from "@/components/PageHeader";
 import { groupNames, type GroupName } from "@/data/matches";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,7 +33,10 @@ const filters: ResultFilter[] = [
 export default function ResultadosPage() {
   const { user, isReady: isAuthReady } = useAuth();
   const { matches } = useMatches();
-  const { results } = useProdeStore();
+  // /resultados sólo lee `results`; pasamos userId al store para que el
+  // fetch de predicciones quede escopado al usuario logueado y no baje las
+  // de los otros 499.
+  const { results } = useProdeStore(user?.userId ?? undefined);
   const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<ResultFilter>({
     type: "grupo",
@@ -94,10 +98,10 @@ export default function ResultadosPage() {
               key={key}
               type="button"
               onClick={() => setActiveFilter(filter)}
-              className={`fc-broadcast-cut-sm fc-display-italic shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[0.78rem] uppercase tracking-[0.14em] transition hover:-translate-y-0.5 ${
+              className={`fc-broadcast-cut-sm fc-display-italic shrink-0 inline-flex items-center gap-2 px-4 py-2 text-[0.78rem] uppercase tracking-[0.14em] transition-colors ${
                 isActive
-                  ? "bg-[var(--fc-cyan)] text-slate-950 shadow-[0_0_24px_rgba(56,212,255,0.45)]"
-                  : "border border-white/[0.07] bg-white/[0.025] text-slate-300 hover:border-[var(--fc-cyan)]/30 hover:bg-[var(--fc-cyan)]/[0.08] hover:text-white"
+                  ? "bg-[var(--fc-cyan)] text-slate-950"
+                  : "border border-white/[0.08] bg-white/[0.02] text-slate-300 hover:border-[var(--fc-cyan)]/30 hover:bg-[var(--fc-cyan)]/[0.06] hover:text-white"
               }`}
             >
               <span
@@ -134,10 +138,9 @@ export default function ResultadosPage() {
                   return (
                     <article
                       key={match.id}
-                      className="fc-card fc-card-accent relative overflow-hidden p-5 transition hover:-translate-y-0.5"
+                      className="fc-card fc-card-accent relative p-5 transition-colors hover:border-[var(--fc-lime)]/20"
                     >
-                      <div aria-hidden className="pointer-events-none absolute inset-0 fc-diagonal opacity-30" />
-                      <div className="relative flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <span className="fc-chip fc-chip-neutral">
                           <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--fc-lime)]" />
                           {match.group} {match.matchday ? `· F${match.matchday}` : ""}
@@ -146,20 +149,26 @@ export default function ResultadosPage() {
                           {match.date}
                         </span>
                       </div>
-                      <div className="fc-broadcast-cut-sm relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border border-white/[0.06] bg-[#02050b]/85 px-4 py-4">
-                        <p className="fc-display-italic text-base uppercase tracking-[0.04em] text-white">
-                          {match.homeTeam}
-                        </p>
+                      <div className="fc-broadcast-cut-sm relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border border-white/[0.06] bg-[#070b13] px-4 py-4">
+                        <CountryWithFlag
+                          name={match.homeTeam}
+                          size={48}
+                          variant="stack"
+                          nameClassName="text-[0.7rem]"
+                        />
                         <p className="fc-stencil text-3xl text-white">
                           {score?.home}
                           <span className="px-1 text-[var(--fc-lime)]">:</span>
                           {score?.away}
                         </p>
-                        <p className="fc-display-italic text-right text-base uppercase tracking-[0.04em] text-white">
-                          {match.awayTeam}
-                        </p>
+                        <CountryWithFlag
+                          name={match.awayTeam}
+                          size={48}
+                          variant="stack"
+                          nameClassName="text-[0.7rem]"
+                        />
                       </div>
-                      <p className="relative mt-3 fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-500">
+                      <p className="mt-3 fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-500">
                         {match.venue} · {match.city}
                       </p>
                     </article>
@@ -174,19 +183,18 @@ export default function ResultadosPage() {
           </section>
 
           <section>
-            <article className="fc-card fc-card-accent relative mb-6 overflow-hidden p-5">
-              <div aria-hidden className="pointer-events-none absolute inset-0 fc-halftone opacity-30" />
-              <h2 className="relative fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
+            <article className="fc-card fc-card-accent relative mb-6 p-5">
+              <h2 className="fc-display-italic text-2xl uppercase tracking-[0.02em] text-white">
                 <span className="text-[var(--fc-lime)]">▸</span> Clasificados
               </h2>
-              <p className="relative mt-2 text-sm text-slate-300">
+              <p className="mt-2 text-sm text-slate-400">
                 Se muestran cuando cada grupo tiene sus 3 fechas cargadas.
               </p>
-              <div className="relative mt-4 grid gap-3 md:grid-cols-2">
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {groupNames.map((group) => (
                   <div
                     key={group}
-                    className="fc-broadcast-cut-sm border border-white/[0.07] bg-[#02050b]/65 p-4"
+                    className="fc-broadcast-cut-sm border border-white/[0.07] bg-[#070b13] p-4"
                   >
                     <p className="fc-display-italic text-sm uppercase tracking-[0.18em] text-[var(--fc-lime)]">
                       {group}

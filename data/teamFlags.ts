@@ -67,12 +67,29 @@ export function getTeamFlagCode(teamName: string): string | null {
 
 /**
  * URL del PNG en flagcdn. Resoluciones soportadas: 20, 40, 80, 160, 320, 640.
- * Pedimos 40 (≈ 26x20 px reales) y la mostramos a 20-24 px de ancho.
+ *
+ * Para banderas inline pequeñas pedimos 40 (≈ 26x20 px reales). Para las
+ * variantes "stack" donde la bandera es protagonista (cards de partido,
+ * bracket, hero) pedimos 160 / 320 según el tamaño visual. La función ahora
+ * acepta cualquiera de los valores oficiales y elige el más cercano hacia
+ * arriba para que la bandera se vea nítida en pantallas retina.
  */
-export function getTeamFlagUrl(teamName: string, width: 20 | 40 | 80 = 40): string | null {
+type FlagWidth = 20 | 40 | 80 | 160 | 320 | 640;
+
+const SUPPORTED_FLAG_WIDTHS: FlagWidth[] = [20, 40, 80, 160, 320, 640];
+
+function pickClosestWidth(target: number): FlagWidth {
+  for (const width of SUPPORTED_FLAG_WIDTHS) {
+    if (width >= target) return width;
+  }
+  return 640;
+}
+
+export function getTeamFlagUrl(teamName: string, requestedWidth: number = 40): string | null {
   const code = getTeamFlagCode(teamName);
   if (!code) {
     return null;
   }
+  const width = pickClosestWidth(requestedWidth);
   return `https://flagcdn.com/w${width}/${code}.png`;
 }

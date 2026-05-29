@@ -2,14 +2,15 @@ import type { Match } from "@/data/matches";
 import { parseScore, type ResultsByMatch } from "@/lib/prode";
 
 /**
- * Parsing del horario de inicio de un partido.
+ * Parsing del horario de inicio de un partido + helpers asociados.
  *
  * Formato esperado:
  *   date: "11 jun 2026"   -> día (1-2 dígitos) + mes en español (3 letras) + año (4 dígitos)
  *   time: "15:00 EDT"     -> HH:MM + zona horaria (EDT = UTC-4, EST = UTC-5)
  *
  * Los partidos generados de eliminación directa pueden tener "A definir";
- * en ese caso devolvemos `null` y NUNCA se consideran vencidos.
+ * en ese caso devolvemos `null` y NUNCA se consideran vencidos ni se cierran
+ * por kickoff (no podés bloquear algo que no sabés cuándo arranca).
  */
 
 const SPANISH_MONTHS: Record<string, number> = {
@@ -40,6 +41,7 @@ const TIMEZONE_OFFSET_MINUTES: Record<string, number> = {
   PDT: -420, // UTC-7
   PST: -480, // UTC-8
   UTC: 0,
+  GMT: 0,
 };
 
 export function parseMatchKickoff(match: Match): Date | null {
@@ -148,4 +150,59 @@ export function matchStatusLabel(status: ReturnType<typeof getMatchStatus>): str
     case "sin_fecha":
       return "Sin fecha";
   }
+}
+
+// =============================================================================
+// Lock de predicciones
+//
+// La predicción de un partido está ABIERTA hasta que se cumpla cualquiera de:
+//   1) el admin cargó el resultado oficial
+//   2) ya pasó el kickoff
+// Cualquiera de las dos cierra la predicción y deja la card en modo lectura.
+// =============================================================================
+
+export type PredictionLock =
+  | { locked: false }
+  | { locked: true; reason: "result" | "kickoff"; message: string };
+
+/**
+ * Decide si la predicción del partido está abierta o cerrada.
+ *
+ * @param match     partido (con date/time)
+ * @param hasResult true si el admin ya cargó un resultado oficial
+ * @param now       opcional — para tests / re-evaluación en intervalos
+ */
+export function getPredictionLock(
+  match: Match,
+  hasResult: boolean,
+  now: Date = new Date(),
+): PredictionLock {
+  if (hasResult) {
+    return {
+      locked: true,
+      reason: "result",
+      message: "Predicción cerrada: el resultado ya fue cargado.",
+    };
+  }
+  const kickoff = parseMatchKickoff(match);
+  if (kickoff && now.getTime() >= kickoff.getTime()) {
+    return {
+      locked: true,
+      reason: "kickoff",
+      message: "Predicción cerrada: el partido ya comenzó.",
+    };
+  }
+  return { locked: false };
+}
+
+/**
+ * Atajo cuando ya tenés el mapa de resultados cargado (caso típico en
+ * `app/partidos/page.tsx`): evita repetir el `parseScore(...)` afuera.
+ */
+export function getPredictionLockFromResults(
+  match: Match,
+  results: ResultsByMatch,
+  now: Date = new Date(),
+): PredictionLock {
+  return getPredictionLock(match, hasMatchResult(match.id, results), now);
 }
