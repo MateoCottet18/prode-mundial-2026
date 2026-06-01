@@ -1,5 +1,5 @@
 import { calculatePoints, parseScore, type PredictionsByUser, type ResultsByMatch, type SavedPredictionsByUser, type ScoreInput } from "@/lib/prode";
-import { getSupabaseClient } from "@/lib/supabase/client";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { toScoreInput } from "@/lib/supabase/types";
 
 /**
@@ -102,6 +102,30 @@ export async function fetchRankingAggregatesFromSupabase(): Promise<
   }));
 }
 
+export class PredictionSaveError extends Error {
+  constructor(
+    message: string,
+    public readonly code:
+      | "not_configured"
+      | "invalid_score"
+      | "no_session"
+      | "user_mismatch"
+      | "supabase_error",
+    public readonly details?: string,
+  ) {
+    super(message);
+    this.name = "PredictionSaveError";
+  }
+}
+
+/**
+ * Persiste una predicción en `public.predictions`.
+ *
+ * Requisitos de producción:
+ * - `user_id` DEBE ser `auth.users.id` (UUID), no username.
+ * - El cliente Supabase DEBE tener sesión activa (RLS: auth.uid() = user_id).
+ * - Upsert sobre unique (user_id, match_id).
+ */
 export async function savePredictionToSupabase({
   userId,
   matchId,
@@ -113,25 +137,64 @@ export async function savePredictionToSupabase({
   score: ScoreInput;
   results: ResultsByMatch;
 }) {
-  const supabase = getSupabaseClient();
   const parsedScore = parseScore(score);
 
-  if (!supabase || !parsedScore) {
-    return false;
+  console.log("[prediction] intentando guardar");
+  console.log("[prediction] userId (caller)", userId);
+  console.log("[prediction] matchId", matchId);
+  console.log("[prediction] home_goals", parsedScore?.home ?? score.home);
+  console.log("[prediction] away_goals", parsedScore?.away ?? score.away);
+
+  if (!isSupabaseConfigured()) {
+    const msg =
+      "Supabase no está configurado. Revisá NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.";
+    console.error("[prediction] error Supabase", msg);
+    throw new PredictionSaveError(msg, "not_configured");
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    const msg = "No se pudo crear el cliente de Supabase.";
+    console.error("[prediction] error Supabase", msg);
+    throw new PredictionSaveError(msg, "not_configured");
+  }
+
+  if (!parsedScore) {
+    const msg = "Marcá un resultado válido (goles 0 o más) antes de guardar.";
+    console.error("[prediction] error Supabase", msg);
+    throw new PredictionSaveError(msg, "invalid_score");
+  }
+
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !authUser) {
+    const msg =
+      "Sesión expirada o no iniciada. Cerrá sesión, volvé a entrar e intentá de nuevo.";
+    console.error("[prediction] error Supabase", authError?.message ?? "sin auth.uid()");
+    throw new PredictionSaveError(msg, "no_session", authError?.message);
+  }
+
+  const authUserId = authUser.id;
+  console.log("[prediction] auth.uid()", authUserId);
+
+  if (userId !== authUserId) {
+    console.warn("[prediction] userId del caller no coincide con auth.uid()", {
+      caller: userId,
+      auth: authUserId,
+    });
+    // Siempre persistimos con auth.uid(): es lo que exige RLS.
   }
 
   const points = calculatePoints(score, results[matchId], true) ?? 0;
-  // CRITICAL: especificar `onConflict` por la unique (user_id, match_id).
-  // Sin esto, supabase-js usa el primary key `id` como conflict target;
-  // como `id` no viene en el payload, PostgREST genera uno nuevo, intenta
-  // INSERT, y la unique (user_id, match_id) lo rechaza al editar una
-  // predicción que ya existía. Resultado visible: el usuario "no podía
-  // editar" su predicción.
-  const { error } = await supabase
+
+  const { data, error } = await supabase
     .from("predictions")
     .upsert(
       {
-        user_id: userId,
+        user_id: authUserId,
         match_id: matchId,
         home_goals: parsedScore.home,
         away_goals: parsedScore.away,
@@ -139,23 +202,65 @@ export async function savePredictionToSupabase({
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,match_id" },
-    );
+    )
+    .select("user_id,match_id,home_goals,away_goals,points")
+    .single();
 
   if (error) {
-    throw new Error(error.message);
+    console.error("[prediction] error Supabase", error.message, error.code, error.details);
+    const hint =
+      error.code === "42501"
+        ? " Permiso denegado por RLS: verificá que estés logueado y que user_id = auth.uid()."
+        : "";
+    throw new PredictionSaveError(
+      `${error.message}${hint}`,
+      "supabase_error",
+      error.details ?? error.hint,
+    );
   }
+
+  if (!data) {
+    const msg = "Supabase no devolvió la fila guardada.";
+    console.error("[prediction] error Supabase", msg);
+    throw new PredictionSaveError(msg, "supabase_error");
+  }
+
+  console.log("[prediction] guardado OK", {
+    user_id: data.user_id,
+    match_id: data.match_id,
+    home_goals: data.home_goals,
+    away_goals: data.away_goals,
+    points: data.points,
+  });
 
   return true;
 }
 
 export async function deletePredictionFromSupabase(userId: string, matchId: string) {
   const supabase = getSupabaseClient();
-  if (!supabase) return false;
+  if (!supabase) {
+    throw new PredictionSaveError("Supabase no configurado.", "not_configured");
+  }
+
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !authUser) {
+    throw new PredictionSaveError(
+      "Sesión expirada. Volvé a iniciar sesión.",
+      "no_session",
+      authError?.message,
+    );
+  }
+
+  const authUserId = authUser.id;
 
   const { error } = await supabase
     .from("predictions")
     .delete()
-    .eq("user_id", userId)
+    .eq("user_id", authUserId)
     .eq("match_id", matchId);
 
   if (error) {

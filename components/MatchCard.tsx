@@ -38,7 +38,8 @@ type MatchCardProps = {
   canManageResult?: boolean;
   hasSavedResult?: boolean;
   onPredictionChange?: (side: keyof ScoreInput, value: string) => void;
-  onSavePrediction?: () => void;
+  onSavePrediction?: () => void | Promise<boolean>;
+  isSavingPrediction?: boolean;
   onResultChange?: (side: keyof ScoreInput, value: string) => void;
   onSaveResult?: () => void;
   onEditResult?: () => void;
@@ -72,6 +73,7 @@ export function MatchCard({
   hasSavedResult = false,
   onPredictionChange,
   onSavePrediction,
+  isSavingPrediction = false,
   onResultChange,
   onSaveResult,
   onEditResult,
@@ -188,8 +190,13 @@ export function MatchCard({
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              onClick={onSavePrediction}
-              disabled={!canEditPrediction || !hasValidPrediction || (isSaved && !isDirty)}
+              onClick={() => void onSavePrediction?.()}
+              disabled={
+                isSavingPrediction ||
+                !canEditPrediction ||
+                !hasValidPrediction ||
+                (isSaved && !isDirty)
+              }
               className="fc-cta-fifa"
               style={
                 {
@@ -200,7 +207,11 @@ export function MatchCard({
               }
             >
               <span aria-hidden>▸</span>{" "}
-              {isSaved ? "Guardar cambios" : "Guardar predicción"}
+              {isSavingPrediction
+                ? "Guardando…"
+                : isSaved
+                  ? "Guardar cambios"
+                  : "Guardar predicción"}
             </button>
             {hasResult && points !== null ? <PointsBadge points={points} /> : null}
           </div>

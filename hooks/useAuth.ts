@@ -61,12 +61,16 @@ export function useAuth() {
         writeStorage(storageKeys.session, supabaseUser);
         setUser(supabaseUser);
       } else {
-        // Sin sesión en Supabase: limpiamos el cache local sólo si tenía algo,
-        // y bajamos el user a null. NUNCA dispatcheamos eventos desde acá.
+        // Sin sesión en Supabase Auth: el snapshot local no sirve para escribir
+        // en RLS (predictions, payments). Limpiamos para no mostrar "logueado"
+        // cuando auth.uid() es null y los saves fallan en silencio.
         if (cached) {
+          console.warn(
+            "[useAuth] cache local sin sesión Supabase — limpiando prode-session",
+          );
           clearSessionCache();
         }
-        setUser((current) => (current === null ? current : null));
+        setUser(null);
       }
     } catch (error) {
       console.error("[useAuth] no se pudo cargar la sesión desde Supabase", error);

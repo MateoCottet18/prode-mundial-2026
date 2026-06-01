@@ -48,6 +48,8 @@ export default function PartidosPage() {
     results,
     updatePrediction,
     savePrediction,
+    predictionSaveError,
+    isSavingPrediction,
   } = useProdeStore(user?.userId ?? undefined);
   const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<Filter>({ type: "fecha", value: 1 });
@@ -85,33 +87,33 @@ export default function PartidosPage() {
     return [];
   }, [activeFilter, matches]);
 
-  const username = user?.userId ?? user?.username ?? "";
+  // Clave de predicciones = profiles.id (UUID) = auth.uid(). Nunca username.
+  const participantId = user?.userId ?? "";
   const canPredict = user?.role === "participante";
 
   const handlePredictionChange = useCallback(
     (matchId: string, side: keyof ScoreInput, value: string) => {
-      if (!username) return;
-      updatePrediction(username, matchId, side, value);
+      if (!participantId) return;
+      updatePrediction(participantId, matchId, side, value);
     },
-    [updatePrediction, username],
+    [updatePrediction, participantId],
   );
 
   const handleSavePrediction = useCallback(
     async (matchId: string) => {
-      if (!username) return false;
+      if (!participantId) {
+        return false;
+      }
       const match = matches.find((candidate) => candidate.id === matchId);
-      // Defensa server-side-ish: si por alguna razón el botón quedó visible
-      // pero el lock se cerró (timing race), abortamos antes de pegarle a
-      // Supabase. La UI ya bloquea inputs, así que esto es paracaídas.
       if (match) {
         const lock = getPredictionLockFromResults(match, results, new Date());
         if (lock.locked) {
           return false;
         }
       }
-      return savePrediction(username, matchId);
+      return savePrediction(participantId, matchId);
     },
-    [matches, results, savePrediction, username],
+    [matches, participantId, results, savePrediction],
   );
 
   if (isAuthReady && !user) {
@@ -155,9 +157,9 @@ export default function PartidosPage() {
   }
 
   const isEliminatoria = activeFilter.type === "eliminatoria";
-  const userPredictions = predictions[username] ?? {};
-  const userDbPredictions = dbPredictions[username] ?? {};
-  const userSaved = savedPredictions[username] ?? {};
+  const userPredictions = predictions[participantId] ?? {};
+  const userDbPredictions = dbPredictions[participantId] ?? {};
+  const userSaved = savedPredictions[participantId] ?? {};
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
@@ -173,6 +175,21 @@ export default function PartidosPage() {
           </span>
         }
       />
+
+      {predictionSaveError ? (
+        <div
+          role="alert"
+          className="mb-6 border border-[var(--fc-magenta)]/40 bg-[var(--fc-magenta)]/10 px-4 py-3 text-sm text-[var(--fc-magenta)]"
+        >
+          <p className="font-medium">No se pudo guardar la predicción</p>
+          <p className="mt-1 text-slate-200">{predictionSaveError}</p>
+          {predictionSaveError.toLowerCase().includes("sesión") ? (
+            <Link href="/login" className="mt-2 inline-block text-[var(--fc-lime)] underline">
+              Ir al login
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
         {filters.map((filter) => {
@@ -233,9 +250,10 @@ export default function PartidosPage() {
               canPredict={canPredict}
               predictionLock={getLockForMatch(match)}
               onPredictionChange={(side, value) =>
-                updatePrediction(username, match.id, side, value)
+                updatePrediction(participantId, match.id, side, value)
               }
               onSavePrediction={() => handleSavePrediction(match.id)}
+              isSavingPrediction={isSavingPrediction}
             />
           ))}
         </div>

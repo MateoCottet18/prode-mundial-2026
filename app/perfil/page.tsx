@@ -87,7 +87,7 @@ export default function PerfilPage() {
       userName={user.name}
       userUsername={user.username}
       userRole={user.role}
-      userKey={user.userId ?? user.username ?? ""}
+      userKey={user.userId}
       registeredUsers={registeredUsers}
       predictions={predictions}
       dbPredictions={dbPredictions}

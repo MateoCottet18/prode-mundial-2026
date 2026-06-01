@@ -92,6 +92,7 @@ export function BracketMatch({
   const [adminDraft, setAdminDraft] = useState<ScoreInput>(baseScore);
   const [saving, setSaving] = useState(false);
   const [savingPrediction, setSavingPrediction] = useState(false);
+  const [predictionSaveError, setPredictionSaveError] = useState<string | null>(null);
 
   const [syncedBase, setSyncedBase] = useState(baseScore);
   if (
@@ -131,8 +132,14 @@ export function BracketMatch({
   const handleSavePrediction = async () => {
     if (!onSavePrediction || !parseScore(prediction)) return;
     setSavingPrediction(true);
+    setPredictionSaveError(null);
     try {
-      await onSavePrediction(match.id);
+      const ok = await onSavePrediction(match.id);
+      if (ok === false) {
+        setPredictionSaveError(
+          "No se pudo guardar. Revisá tu sesión o intentá de nuevo.",
+        );
+      }
     } finally {
       setSavingPrediction(false);
     }
@@ -227,6 +234,7 @@ export function BracketMatch({
           hasResult={hasResult}
           points={points}
           saving={savingPrediction}
+          saveError={predictionSaveError}
           onPredictionChange={onPredictionChange}
           onSave={handleSavePrediction}
         />
@@ -255,6 +263,7 @@ type PredictionEditorProps = {
   hasResult: boolean;
   points: number | null;
   saving: boolean;
+  saveError?: string | null;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSave: () => void;
 };
@@ -267,6 +276,7 @@ function PredictionEditor({
   hasResult,
   points,
   saving,
+  saveError,
   onPredictionChange,
   onSave,
 }: PredictionEditorProps) {
@@ -326,6 +336,11 @@ function PredictionEditor({
           </button>
         </div>
       </div>
+      {saveError ? (
+        <p className="mt-1 text-[0.65rem] text-red-300" role="alert">
+          {saveError}
+        </p>
+      ) : null}
       <div className="fc-display mt-1 flex items-center justify-between gap-1 text-[0.6rem] tabular-nums">
         <span
           className={`uppercase tracking-[0.12em] ${

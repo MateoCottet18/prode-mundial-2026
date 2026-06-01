@@ -12,6 +12,7 @@ import {
 import {
   deletePredictionFromSupabase,
   fetchPredictionsFromSupabase,
+  PredictionSaveError,
   recalculatePredictionPoints,
   savePredictionToSupabase,
 } from "@/lib/services/predictionService";
@@ -24,33 +25,17 @@ import {
 /**
  * Estado global de predicciones + resultados.
  *
- * Fuente de verdad única: Supabase. Cada `save*` hace:
- *   1. Optimistic update del estado React.
- *   2. Persistencia en Supabase (upsert/delete).
- *   3. Refresh desde Supabase para asegurar consistencia entre dispositivos.
+ * Fuente de verdad única: Supabase. Cada `save*`:
+ *   1. Persiste en Supabase (upsert/delete).
+ *   2. Refresca desde Supabase para confirmar la fila y sincronizar otros tabs.
  *
  * Tres mapas conviviendo:
  *   - `predictions`     → estado del INPUT (lo que está tipeando el usuario).
- *                         Cambia con cada tecla, NO refleja Supabase.
- *   - `dbPredictions`   → último valor confirmado en Supabase. Se actualiza
- *                         sólo después de un save/refresh exitoso. Lo usan
- *                         el ranking y la vista bloqueada (resultado cargado
- *                         o kickoff pasado) para mostrar lo que realmente
- *                         está persistido, sin importar si el usuario tiene
- *                         cambios sin guardar.
- *   - `savedPredictions`→ derivado: "tengo fila en DB para este match". NO
- *                         se voltea a `false` por keystrokes; sólo cambia con
- *                         save (true) y delete (remueve la entry).
+ *   - `dbPredictions`   → último valor confirmado en Supabase.
+ *   - `savedPredictions`→ "tengo fila en DB para este match".
  *
- * Si la llamada a Supabase falla, devolvemos el error en `error` y
- * dejamos los datos en memoria como estaban, NO sincronizados con la base.
- *
- * Performance:
- * - Si se pasa `userId`, el fetch de predicciones queda escopado a ese
- *   usuario. Es lo que querés en /partidos y /perfil: el cliente sólo
- *   necesita ver las propias para editar/visualizar. A 500 usuarios el
- *   fetch sin scope pesa ~4 MB; con scope ~10 KB.
- * - El ranking debe consumirse vía `useRankingAggregates`, NO desde acá.
+ * NO hacemos optimistic update antes de confirmar Supabase: si falla el
+ * guardado, la UI no debe mostrar "Guardada".
  */
 export function useProdeStore(userId?: string) {
   const [predictions, setPredictions] = useState<PredictionsByUser>({});
@@ -59,9 +44,9 @@ export function useProdeStore(userId?: string) {
   const [results, setResults] = useState<ResultsByMatch>({});
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingPrediction, setIsSavingPrediction] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Evita N refreshes en paralelo si llegan varios `prode-store-change` seguidos
-  // (admin guardando muchos resultados, o varios `useProdeStore` montados).
+  const [predictionSaveError, setPredictionSaveError] = useState<string | null>(null);
   const isRefreshingRef = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -80,8 +65,6 @@ export function useProdeStore(userId?: string) {
       ]);
 
       const remotePred = remotePredictions?.predictions ?? {};
-      // Sincronizamos los tres mapas. `predictions` arranca espejando lo de
-      // DB; cualquier edición posterior queda sólo en el mapa local.
       setPredictions(remotePred);
       setDbPredictions(remotePred);
       setSavedPredictions(remotePredictions?.savedPredictions ?? {});
@@ -107,18 +90,13 @@ export function useProdeStore(userId?: string) {
     return () => window.removeEventListener("prode-store-change", handler);
   }, [refresh]);
 
-  // ---------------------------------------------------------------------------
-  // Predicciones (participante).
-  // ---------------------------------------------------------------------------
-
   const updatePrediction = (
     userId: string,
     matchId: string,
     side: keyof ScoreInput,
     value: string,
   ) => {
-    // Sólo movemos el mapa local. No tocamos savedPredictions ni dbPredictions
-    // porque la fila en DB sigue siendo la misma hasta que el usuario guarde.
+    setPredictionSaveError(null);
     setPredictions((current) => ({
       ...current,
       [userId]: {
@@ -131,53 +109,40 @@ export function useProdeStore(userId?: string) {
     }));
   };
 
-  const savePrediction = async (userId: string, matchId: string) => {
+  const savePrediction = async (userId: string, matchId: string): Promise<boolean> => {
     const score = predictions[userId]?.[matchId];
-    if (!parseScore(score)) return false;
+    if (!parseScore(score)) {
+      setPredictionSaveError("Marcá un resultado válido antes de guardar.");
+      return false;
+    }
 
-    // Snapshot para rollback si Supabase rechaza.
-    const previousDbScore = dbPredictions[userId]?.[matchId];
-    const previousSavedFlag = Boolean(savedPredictions[userId]?.[matchId]);
+    if (!userId) {
+      setPredictionSaveError("No hay usuario identificado. Volvé a iniciar sesión.");
+      return false;
+    }
 
-    // Optimistic: marcamos como guardado y movemos el mirror de DB.
-    setSavedPredictions((current) => ({
-      ...current,
-      [userId]: { ...(current[userId] ?? {}), [matchId]: true },
-    }));
-    setDbPredictions((current) => ({
-      ...current,
-      [userId]: { ...(current[userId] ?? {}), [matchId]: score },
-    }));
+    setIsSavingPrediction(true);
+    setPredictionSaveError(null);
+    setError(null);
 
     try {
       await savePredictionToSupabase({ userId, matchId, score, results });
-      // OJO: NO disparamos `prode-store-change` acá. La actualización
-      // optimista de `dbPredictions` + `savedPredictions` ya dejó la UI
-      // local consistente. Refrescar dispararía un fetch completo de
-      // predicciones que no aporta nada nuevo (es la misma data que
-      // acabamos de escribir). A 500 usuarios eso son cientos de KB de
-      // egress por save evitados.
+      // Confirmar en Supabase (otro dispositivo / recarga deben ver lo mismo).
+      await refresh();
       return true;
     } catch (err) {
+      const message =
+        err instanceof PredictionSaveError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "No se pudo guardar la predicción.";
       console.error("[useProdeStore] no se pudo guardar la predicción", err);
-      setError(err instanceof Error ? err.message : "No se pudo guardar la predicción.");
-      // Rollback: revertimos savedPredictions y dbPredictions a lo previo.
-      setSavedPredictions((current) => ({
-        ...current,
-        [userId]: { ...(current[userId] ?? {}), [matchId]: previousSavedFlag },
-      }));
-      setDbPredictions((current) => {
-        const next = { ...current };
-        const userMap = { ...(next[userId] ?? {}) };
-        if (previousDbScore) {
-          userMap[matchId] = previousDbScore;
-        } else {
-          delete userMap[matchId];
-        }
-        next[userId] = userMap;
-        return next;
-      });
+      setPredictionSaveError(message);
+      setError(message);
       return false;
+    } finally {
+      setIsSavingPrediction(false);
     }
   };
 
@@ -190,10 +155,6 @@ export function useProdeStore(userId?: string) {
       setError(err instanceof Error ? err.message : "No se pudo eliminar la predicción.");
     }
   };
-
-  // ---------------------------------------------------------------------------
-  // Resultados (admin).
-  // ---------------------------------------------------------------------------
 
   const updateResult = (matchId: string, side: keyof ScoreInput, value: string) => {
     setResults((current) => ({
@@ -255,9 +216,10 @@ export function useProdeStore(userId?: string) {
   return {
     isReady,
     isSyncing,
+    isSavingPrediction,
     error,
+    predictionSaveError,
     predictions,
-    /** Lo que está realmente en Supabase. Úsalo en ranking y vistas bloqueadas. */
     dbPredictions,
     savedPredictions,
     results,
