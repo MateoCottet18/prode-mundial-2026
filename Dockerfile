@@ -15,8 +15,9 @@
 #   `next build`. No alcanza con setearlas en Cloud Run a runtime: hay que
 #   pasarlas como `--build-arg` al construir la imagen. Para Cloud Build /
 #   gcloud, configurarlas como build-args. Las vars server-only
-#   (SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL, ADMIN_USERNAME) NO se pasan acá:
-#   se setean directamente en el servicio de Cloud Run.
+#   (SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL, ADMIN_USERNAME, RESEND_API_KEY,
+#   RESEND_FROM, APP_URL) NO se pasan acá: se setean directamente en el
+#   servicio de Cloud Run con --set-env-vars o --set-secrets.
 # =============================================================================
 
 # -----------------------------------------------------------------------------

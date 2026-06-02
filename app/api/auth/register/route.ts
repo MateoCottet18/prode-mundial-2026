@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import {
   enforcePaymentStatusForUser,
   enforceRoleForUser,
+  isAdminUser,
   shouldBlockAdminDeletion,
 } from "@/lib/admin";
 import { mapAuthErrorMessage } from "@/lib/authErrors";
+import { sendEmail } from "@/lib/services/emailService";
+import { buildWelcomeEmail } from "@/lib/services/emailTemplates";
 import { getSupabaseAdminClient, isSupabaseServiceRoleConfigured } from "@/lib/supabase/server";
 
 type RegisterBody = {
@@ -132,6 +135,21 @@ export async function POST(request: Request) {
       : mapAuthErrorMessage(profileError.message);
 
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
+  // Email de bienvenida — best-effort: si Resend falla NO rompemos el registro.
+  // Tampoco al admin protegido por env (es self-onboarding del operador).
+  if (!isAdminUser(identity)) {
+    const welcome = buildWelcomeEmail({ name, username });
+    void sendEmail({
+      to: email,
+      subject: welcome.subject,
+      html: welcome.html,
+      text: welcome.text,
+      tag: "welcome",
+    }).catch((err) => {
+      console.warn("[register] welcome email no enviado", err);
+    });
   }
 
   return NextResponse.json({

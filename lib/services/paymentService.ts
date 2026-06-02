@@ -184,6 +184,63 @@ export async function updateLatestPaymentStatus(
   }
 }
 
+/**
+ * Best-effort: avisa al usuario que su pago fue aprobado.
+ *
+ * - Sólo se llama cuando el admin marca como `approved`.
+ * - Lleva el JWT del admin para que el endpoint server-side valide rol
+ *   antes de mandar el email.
+ * - Si falla (Resend caído / sin configurar / red), loguea warning y
+ *   devuelve `false`. NO interrumpe el flujo del admin.
+ */
+export async function notifyPaymentApproved(userId: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return false;
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      console.warn(
+        "[paymentService] sin access token para notificar aprobación",
+      );
+      return false;
+    }
+
+    const response = await fetch("/api/admin/notify-payment-approved", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const body = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      emailSent?: boolean;
+      reason?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      console.warn(
+        "[paymentService] notify-payment-approved respondió error",
+        response.status,
+        body.error ?? body.reason,
+      );
+      return false;
+    }
+
+    return Boolean(body.emailSent);
+  } catch (error) {
+    console.warn("[paymentService] excepción notificando aprobación", error);
+    return false;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Internals
 // -----------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import type { AppUser, PaymentStatus, PaymentProof } from "@/lib/prode";
 import { registerWithSupabase, type RegisterInput } from "@/lib/services/authService";
 import {
   fetchLatestPaymentsByUserIds,
+  notifyPaymentApproved,
   updateLatestPaymentStatus,
 } from "@/lib/services/paymentService";
 import { fetchProfiles, updateProfilePaymentStatus } from "@/lib/services/profileService";
@@ -138,6 +139,10 @@ export function useUsers() {
       const userId = await updateProfilePaymentStatus(userIdOrUsername, paymentStatus);
       if (userId) {
         await updateLatestPaymentStatus(userId, paymentStatus);
+        // Email best-effort: si falla NO rompe la aprobación.
+        if (paymentStatus === "approved") {
+          void notifyPaymentApproved(userId);
+        }
       }
       window.dispatchEvent(new Event("prode-users-change"));
     } catch (err) {
