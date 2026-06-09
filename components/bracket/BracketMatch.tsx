@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
+import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import type { Match } from "@/data/matches";
 import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
@@ -251,6 +252,17 @@ export function BracketMatch({
           }
         />
       )}
+
+      {/* Revelación de predicciones (sólo participantes, tras el kickoff) */}
+      {!isAdmin && canPredict ? (
+        <MatchPredictionsReveal
+          matchId={match.id}
+          revealed={isLocked}
+          homeTeam={match.homeTeam}
+          awayTeam={match.awayTeam}
+          compact
+        />
+      ) : null}
     </article>
   );
 }

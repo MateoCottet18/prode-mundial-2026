@@ -1,4 +1,4 @@
-import { calculatePoints, parseScore, type PredictionsByUser, type ResultsByMatch, type SavedPredictionsByUser, type ScoreInput } from "@/lib/prode";
+import { calculatePoints, getResult, parseScore, type PredictionsByUser, type ResultsByMatch, type SavedPredictionsByUser, type ScoreInput } from "@/lib/prode";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { toScoreInput } from "@/lib/supabase/types";
 
@@ -100,6 +100,122 @@ export async function fetchRankingAggregatesFromSupabase(): Promise<
     correctOutcomesCount: row.correct_outcomes_count ?? 0,
     savedCount: row.saved_count ?? 0,
   }));
+}
+
+// -----------------------------------------------------------------------------
+// Revelación de predicciones por partido
+//
+// Una vez que el partido comenzó (kickoff pasó o hay resultado cargado),
+// cualquier participante puede ver las predicciones de los demás. Antes del
+// kickoff esto NO debe llamarse (el gating temporal lo decide el caller con
+// el `PredictionLock`). La fuente es siempre `public.predictions` (no estado
+// local) + `public.profiles` para los nombres.
+// -----------------------------------------------------------------------------
+
+export type MatchPredictionEntry = {
+  userId: string;
+  name: string;
+  home: number;
+  away: number;
+  outcome: "local" | "empate" | "visitante";
+};
+
+export type MatchPredictionsSummary = {
+  total: number;
+  home: number;
+  draw: number;
+  away: number;
+};
+
+export type MatchPredictionsReveal = {
+  entries: MatchPredictionEntry[];
+  summary: MatchPredictionsSummary;
+};
+
+/**
+ * Trae todas las predicciones guardadas para un `matchId`, con el nombre del
+ * participante y un resumen agregado (total + local/empate/visitante).
+ *
+ * - Sólo incluye participantes (excluye admin).
+ * - Ordena alfabéticamente por nombre.
+ * - Devuelve `null` si Supabase no está configurado.
+ *
+ * No toca ranking, puntos ni resultados: es sólo lectura para visualización.
+ */
+export async function fetchMatchPredictions(
+  matchId: string,
+): Promise<MatchPredictionsReveal | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data: predRows, error: predError } = await supabase
+    .from("predictions")
+    .select("user_id,home_goals,away_goals")
+    .eq("match_id", matchId);
+
+  if (predError) {
+    throw new Error(predError.message);
+  }
+
+  const rows = predRows ?? [];
+  const emptySummary: MatchPredictionsSummary = { total: 0, home: 0, draw: 0, away: 0 };
+  if (rows.length === 0) {
+    return { entries: [], summary: emptySummary };
+  }
+
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id)));
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select("id,name,username,role")
+    .in("id", userIds);
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  const profileById = new Map<
+    string,
+    { name: string | null; username: string | null; role: string }
+  >();
+  for (const profile of profileRows ?? []) {
+    profileById.set(profile.id, {
+      name: profile.name,
+      username: profile.username,
+      role: String(profile.role),
+    });
+  }
+
+  const entries: MatchPredictionEntry[] = [];
+  for (const row of rows) {
+    const profile = profileById.get(row.user_id);
+    if (!profile || profile.role === "admin") {
+      continue;
+    }
+    entries.push({
+      userId: row.user_id,
+      name: profile.name?.trim() || profile.username || "Participante",
+      home: row.home_goals,
+      away: row.away_goals,
+      outcome: getResult(row.home_goals, row.away_goals),
+    });
+  }
+
+  entries.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+
+  const summary = entries.reduce<MatchPredictionsSummary>(
+    (acc, entry) => {
+      acc.total += 1;
+      if (entry.outcome === "local") acc.home += 1;
+      else if (entry.outcome === "visitante") acc.away += 1;
+      else acc.draw += 1;
+      return acc;
+    },
+    { total: 0, home: 0, draw: 0, away: 0 },
+  );
+
+  return { entries, summary };
 }
 
 export class PredictionSaveError extends Error {

@@ -1,5 +1,6 @@
 import type { Match } from "@/data/matches";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
+import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import { ScoreField } from "@/components/ScoreField";
 import {
   calculatePoints,
@@ -272,6 +273,16 @@ export function MatchCard({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {/* REVELACIÓN DE PREDICCIONES (sólo participantes, tras el kickoff) */}
+      {canPredict ? (
+        <MatchPredictionsReveal
+          matchId={match.id}
+          revealed={isLocked}
+          homeTeam={match.homeTeam}
+          awayTeam={match.awayTeam}
+        />
       ) : null}
 
       <p className="relative mt-auto pt-4 fc-display-italic text-[0.66rem] uppercase tracking-[0.22em] text-slate-500">
