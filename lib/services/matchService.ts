@@ -24,7 +24,7 @@ export async function fetchMatchesFromSupabase(): Promise<Match[] | null> {
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id,home_team,away_team,match_date,kickoff_time,group_name,stage,matchday,venue,city",
+      "id,home_team,away_team,match_date,kickoff_time,kickoff_argentina,group_name,stage,matchday,venue,city",
     )
     .order("matchday", { ascending: true, nullsFirst: false })
     .order("id", { ascending: true });
@@ -58,6 +58,7 @@ function rowToMatch(row: MatchRow): Match {
     stage: row.stage,
     date: row.match_date ?? "A definir",
     time: row.kickoff_time ?? "A definir",
+    kickoffArgentina: row.kickoff_argentina ?? null,
     homeTeam: row.home_team,
     awayTeam: row.away_team,
     venue: row.venue ?? "",

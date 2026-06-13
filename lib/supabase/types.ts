@@ -49,6 +49,7 @@ export type MatchRow = {
   away_team: string;
   match_date: string | null;
   kickoff_time: string | null;
+  kickoff_argentina: string | null;
   group_name: string | null;
   stage: "grupos" | "16avos" | "octavos" | "cuartos" | "semifinal" | "final";
   matchday: number | null;

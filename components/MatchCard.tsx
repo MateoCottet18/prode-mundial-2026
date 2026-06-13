@@ -9,7 +9,7 @@ import {
   parseScore,
   type ScoreInput,
 } from "@/lib/prode";
-import type { PredictionLock } from "@/lib/matchTime";
+import { getKickoffDateLabelArgentina, getPredictionCloseLabel, type PredictionLock } from "@/lib/matchTime";
 
 type MatchCardProps = {
   match: Match;
@@ -102,6 +102,10 @@ export function MatchCard({
   const parsedResult = parseScore(result);
   const hasResult = Boolean(parsedResult);
 
+  // Hora (Argentina) en que se cierra la predicción de este partido.
+  const closeLabel = getPredictionCloseLabel(match);
+  const kickoffDateLabel = getKickoffDateLabelArgentina(match);
+
   // "isDirty" → la fila existe en DB y el input local difiere del valor
   // persistido. Sólo mientras la predicción está abierta tiene sentido.
   const isDirty = isSaved && !isLocked && !scoresEqual(prediction, dbPrediction);
@@ -123,11 +127,12 @@ export function MatchCard({
         <StatusPill hasResult={hasResult} hasPrediction={hasValidPrediction} statusText={status} />
       </div>
 
-      {/* Meta: horario + sede */}
+      {/* Meta: horario (hora Argentina) + sede */}
       <div className="relative mt-3 flex items-center gap-2 text-[0.7rem] text-slate-400">
         <span aria-hidden className="h-1 w-1 rounded-full bg-[var(--fc-lime)]/60" />
         <span className="fc-display-italic uppercase tracking-[0.16em]">
-          {match.date.toUpperCase()} · {match.time}
+          {(kickoffDateLabel ?? match.date).toUpperCase()}
+          {closeLabel ? ` · ${closeLabel} ARG` : ""}
         </span>
         <span className="text-slate-500">·</span>
         <span className="truncate">{match.city}</span>
@@ -189,6 +194,11 @@ export function MatchCard({
           </div>
         ) : (
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {closeLabel ? (
+              <span className="text-[0.62rem] uppercase tracking-[0.14em] text-slate-400">
+                Cierra: {closeLabel} (hora Argentina)
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={() => void onSavePrediction?.()}

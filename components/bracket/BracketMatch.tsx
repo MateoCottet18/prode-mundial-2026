@@ -7,7 +7,7 @@ import type { Match } from "@/data/matches";
 import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
 import type { BracketMode } from "@/types/bracket";
-import type { PredictionLock } from "@/lib/matchTime";
+import { getPredictionCloseLabel, type PredictionLock } from "@/lib/matchTime";
 
 type Props = {
   match: Match;
@@ -296,6 +296,7 @@ function PredictionEditor({
   const awayValue = prediction?.away ?? "";
   const draftValid = Boolean(parseScore({ home: homeValue, away: awayValue }));
   const canSave = draftValid && !saving && (isDirty || !isPredictionSaved);
+  const closeLabel = getPredictionCloseLabel(match);
 
   return (
     <div className="mt-2 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.05] px-2 py-1.5">
@@ -348,6 +349,11 @@ function PredictionEditor({
           </button>
         </div>
       </div>
+      {closeLabel ? (
+        <p className="fc-display mt-1 text-[0.55rem] uppercase tracking-[0.12em] text-slate-400">
+          Cierra: {closeLabel} (hora Argentina)
+        </p>
+      ) : null}
       {saveError ? (
         <p className="mt-1 text-[0.65rem] text-red-300" role="alert">
           {saveError}

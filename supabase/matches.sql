@@ -27,6 +27,7 @@ create table if not exists public.matches (
   away_team     text not null,
   match_date    text,
   kickoff_time  text,
+  kickoff_argentina timestamptz,
   group_name    text,
   stage         text not null,
   matchday      smallint,

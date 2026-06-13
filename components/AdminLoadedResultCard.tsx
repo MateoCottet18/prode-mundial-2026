@@ -2,6 +2,7 @@ import type { Match } from "@/data/matches";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
 import { parseScore, type ScoreInput } from "@/lib/prode";
 import {
+  formatDateTimeArgentina,
   getMatchStatus,
   matchStatusLabel,
   parseMatchKickoff,
@@ -51,7 +52,7 @@ export function AdminLoadedResultCard({
       </div>
       {kickoff ? (
         <p className="mt-1 text-[0.65rem] uppercase tracking-[0.16em] text-slate-500">
-          {kickoff.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })} local
+          {formatDateTimeArgentina(kickoff)} (hora Argentina)
         </p>
       ) : null}
 
