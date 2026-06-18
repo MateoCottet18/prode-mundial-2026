@@ -15,40 +15,84 @@ import { toScoreInput } from "@/lib/supabase/types";
  * Para el RANKING, NO usar este fetcher. Usar `fetchRankingAggregatesFromSupabase`
  * que devuelve totales pre-agregados (~500 filas en vez de ~52k).
  */
-export async function fetchPredictionsFromSupabase(userId?: string) {
+export async function fetchPredictionsFromSupabase(callerUserId?: string) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return null;
   }
 
+  const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  const authUid = authUser?.id ?? null;
+  console.log("[predictions-load] auth.uid", authUid ?? "(none)");
+  console.log("[predictions-load] caller userId", callerUserId ?? "(none)");
+  if (authError) {
+    console.warn("[predictions-load] auth.getUser error", authError.message);
+  }
+
+  // Fuente de verdad para filtrar: auth.uid(). El caller (session cache) puede
+  // estar desfasado y dejar la UI en "Vacía" aunque Supabase tenga filas.
+  const filterUserId = authUid ?? callerUserId ?? undefined;
+
+  if (authUid && callerUserId && authUid !== callerUserId) {
+    console.warn("[predictions-load] MISMATCH session userId vs auth.uid()", {
+      sessionUserId: callerUserId,
+      authUid,
+    });
+  }
+
   const baseQuery = supabase
     .from("predictions")
     .select("user_id,match_id,home_goals,away_goals");
 
-  const { data, error } = userId
-    ? await baseQuery.eq("user_id", userId)
+  const { data, error } = filterUserId
+    ? await baseQuery.eq("user_id", filterUserId)
     : await baseQuery;
 
   if (error) {
     throw new Error(error.message);
   }
 
+  const rows = data ?? [];
+  console.log("[predictions-load] fetched rows", rows.length);
+
   const predictions: PredictionsByUser = {};
   const savedPredictions: SavedPredictionsByUser = {};
 
-  data.forEach((prediction) => {
-    predictions[prediction.user_id] = {
-      ...(predictions[prediction.user_id] ?? {}),
-      [prediction.match_id]: toScoreInput(prediction.home_goals, prediction.away_goals),
-    };
-    savedPredictions[prediction.user_id] = {
-      ...(savedPredictions[prediction.user_id] ?? {}),
-      [prediction.match_id]: true,
-    };
-  });
+  // Cuando filtramos por usuario, indexamos bajo auth.uid() (y también bajo el
+  // user_id de cada fila) para que la UI encuentre las predicciones aunque el
+  // session cache traiga otra clave.
+  const lookupKeys = new Set<string>();
+  if (filterUserId) lookupKeys.add(filterUserId);
+  if (authUid) lookupKeys.add(authUid);
+  if (callerUserId) lookupKeys.add(callerUserId);
 
-  return { predictions, savedPredictions };
+  for (const prediction of rows) {
+    const score = toScoreInput(prediction.home_goals, prediction.away_goals);
+    const keysForRow = new Set([prediction.user_id, ...lookupKeys]);
+    for (const key of keysForRow) {
+      predictions[key] = {
+        ...(predictions[key] ?? {}),
+        [prediction.match_id]: score,
+      };
+      savedPredictions[key] = {
+        ...(savedPredictions[key] ?? {}),
+        [prediction.match_id]: true,
+      };
+    }
+  }
+
+  console.log("[predictions-load] prediction map keys", Object.keys(predictions));
+
+  return {
+    predictions,
+    savedPredictions,
+    resolvedUserId: authUid ?? callerUserId ?? rows[0]?.user_id ?? null,
+  };
 }
 
 /**

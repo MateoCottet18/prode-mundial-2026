@@ -46,11 +46,13 @@ export default function PartidosPage() {
     dbPredictions,
     savedPredictions,
     results,
+    resolvedUserId,
     updatePrediction,
     savePrediction,
     predictionSaveError,
     isSavingPrediction,
-  } = useProdeStore(user?.userId ?? undefined);
+    isReady: isStoreReady,
+  } = useProdeStore(user?.userId ?? undefined, { skipUntilUserId: true });
   const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<Filter>({ type: "fecha", value: 1 });
 
@@ -87,8 +89,9 @@ export default function PartidosPage() {
     return [];
   }, [activeFilter, matches]);
 
-  // Clave de predicciones = profiles.id (UUID) = auth.uid(). Nunca username.
-  const participantId = user?.userId ?? "";
+  // Clave de predicciones = auth.uid() = profiles.id. Preferimos resolvedUserId
+  // del store (lee auth.uid() en Supabase) por si el session cache está desfasado.
+  const participantId = resolvedUserId ?? user?.userId ?? "";
   const canPredict = user?.role === "participante";
 
   const handlePredictionChange = useCallback(
@@ -115,6 +118,14 @@ export default function PartidosPage() {
     },
     [matches, participantId, results, savePrediction],
   );
+
+  if (isAuthReady && user && !isStoreReady) {
+    return (
+      <main className="mx-auto w-full max-w-4xl px-5 py-16 sm:px-6 lg:px-8">
+        <p className="text-slate-300">Cargando tus predicciones…</p>
+      </main>
+    );
+  }
 
   if (isAuthReady && !user) {
     return (

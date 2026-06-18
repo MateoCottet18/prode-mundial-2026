@@ -32,8 +32,9 @@ export default function PerfilPage() {
     dbPredictions,
     savedPredictions,
     results,
+    resolvedUserId,
     isReady: isStoreReady,
-  } = useProdeStore(user?.userId ?? undefined);
+  } = useProdeStore(user?.userId ?? undefined, { skipUntilUserId: true });
   const { registeredUsers, isReady: isUsersReady } = useUsers();
   const { overridesMap } = useQualificationOverrides();
   const { aggregates: rankingAggregates } = useRankingAggregates();
@@ -87,7 +88,7 @@ export default function PerfilPage() {
       userName={user.name}
       userUsername={user.username}
       userRole={user.role}
-      userKey={user.userId}
+      userKey={resolvedUserId ?? user.userId}
       registeredUsers={registeredUsers}
       predictions={predictions}
       dbPredictions={dbPredictions}

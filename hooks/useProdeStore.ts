@@ -22,6 +22,15 @@ import {
   saveResultToSupabase,
 } from "@/lib/api/resultsApi";
 
+type UseProdeStoreOptions = {
+  /**
+   * Si true, no hace fetch de predicciones hasta que `userId` esté definido.
+   * Evita una carrera en /partidos donde el primer fetch corre con userId
+   * undefined y la UI queda con mapas vacíos bajo la clave del usuario.
+   */
+  skipUntilUserId?: boolean;
+};
+
 /**
  * Estado global de predicciones + resultados.
  *
@@ -34,27 +43,39 @@ import {
  *   - `dbPredictions`   → último valor confirmado en Supabase.
  *   - `savedPredictions`→ "tengo fila en DB para este match".
  *
- * NO hacemos optimistic update antes de confirmar Supabase: si falla el
- * guardado, la UI no debe mostrar "Guardada".
+ * `resolvedUserId` = auth.uid() cuando hay sesión; usarlo como clave de lookup
+ * en la UI (no confiar sólo en session cache).
  */
-export function useProdeStore(userId?: string) {
+export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
+  const skipUntilUserId = options?.skipUntilUserId ?? false;
+
   const [predictions, setPredictions] = useState<PredictionsByUser>({});
   const [dbPredictions, setDbPredictions] = useState<PredictionsByUser>({});
   const [savedPredictions, setSavedPredictions] = useState<SavedPredictionsByUser>({});
   const [results, setResults] = useState<ResultsByMatch>({});
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingPrediction, setIsSavingPrediction] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [predictionSaveError, setPredictionSaveError] = useState<string | null>(null);
   const isRefreshingRef = useRef(false);
+  const pendingRefreshRef = useRef(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const refresh = useCallback(async () => {
+    if (skipUntilUserId && !userId) {
+      console.log("[predictions-load] skip refresh: waiting for userId");
+      return;
+    }
+
     if (isRefreshingRef.current) {
+      pendingRefreshRef.current = true;
       return;
     }
     isRefreshingRef.current = true;
     console.log("[perf] fetch predictions", userId ? `(scope=${userId})` : "(all)");
+    console.log("[predictions-load] currentUser (session)", userId ?? "(none)");
     console.log("[perf] fetch results");
     setIsSyncing(true);
     setError(null);
@@ -68,6 +89,7 @@ export function useProdeStore(userId?: string) {
       setPredictions(remotePred);
       setDbPredictions(remotePred);
       setSavedPredictions(remotePredictions?.savedPredictions ?? {});
+      setResolvedUserId(remotePredictions?.resolvedUserId ?? userId ?? null);
       setResults(remoteResults ?? {});
     } catch (err) {
       console.error("[useProdeStore] error refrescando datos", err);
@@ -76,8 +98,18 @@ export function useProdeStore(userId?: string) {
       setIsReady(true);
       setIsSyncing(false);
       isRefreshingRef.current = false;
+      if (pendingRefreshRef.current) {
+        pendingRefreshRef.current = false;
+        setRefreshNonce((n) => n + 1);
+      }
     }
-  }, [userId]);
+  }, [skipUntilUserId, userId]);
+
+  useEffect(() => {
+    if (refreshNonce === 0) return;
+    const timeoutId = window.setTimeout(() => void refresh(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshNonce, refresh]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void refresh(), 0);
@@ -87,11 +119,15 @@ export function useProdeStore(userId?: string) {
   useEffect(() => {
     const handler = () => void refresh();
     window.addEventListener("prode-store-change", handler);
-    return () => window.removeEventListener("prode-store-change", handler);
+    window.addEventListener("prode-session-change", handler);
+    return () => {
+      window.removeEventListener("prode-store-change", handler);
+      window.removeEventListener("prode-session-change", handler);
+    };
   }, [refresh]);
 
   const updatePrediction = (
-    userId: string,
+    lookupUserId: string,
     matchId: string,
     side: keyof ScoreInput,
     value: string,
@@ -99,24 +135,26 @@ export function useProdeStore(userId?: string) {
     setPredictionSaveError(null);
     setPredictions((current) => ({
       ...current,
-      [userId]: {
-        ...(current[userId] ?? {}),
+      [lookupUserId]: {
+        ...(current[lookupUserId] ?? {}),
         [matchId]: {
-          ...(current[userId]?.[matchId] ?? emptyScore),
+          ...(current[lookupUserId]?.[matchId] ?? emptyScore),
           [side]: value,
         },
       },
     }));
   };
 
-  const savePrediction = async (userId: string, matchId: string): Promise<boolean> => {
-    const score = predictions[userId]?.[matchId];
+  const savePrediction = async (lookupUserId: string, matchId: string): Promise<boolean> => {
+    const score =
+      predictions[lookupUserId]?.[matchId] ??
+      (resolvedUserId ? predictions[resolvedUserId]?.[matchId] : undefined);
     if (!parseScore(score)) {
       setPredictionSaveError("Marcá un resultado válido antes de guardar.");
       return false;
     }
 
-    if (!userId) {
+    if (!lookupUserId && !resolvedUserId) {
       setPredictionSaveError("No hay usuario identificado. Volvé a iniciar sesión.");
       return false;
     }
@@ -126,8 +164,12 @@ export function useProdeStore(userId?: string) {
     setError(null);
 
     try {
-      await savePredictionToSupabase({ userId, matchId, score, results });
-      // Confirmar en Supabase (otro dispositivo / recarga deben ver lo mismo).
+      await savePredictionToSupabase({
+        userId: resolvedUserId ?? lookupUserId,
+        matchId,
+        score,
+        results,
+      });
       await refresh();
       return true;
     } catch (err) {
@@ -146,9 +188,9 @@ export function useProdeStore(userId?: string) {
     }
   };
 
-  const deletePrediction = async (userId: string, matchId: string) => {
+  const deletePrediction = async (lookupUserId: string, matchId: string) => {
     try {
-      await deletePredictionFromSupabase(userId, matchId);
+      await deletePredictionFromSupabase(resolvedUserId ?? lookupUserId, matchId);
       await refresh();
     } catch (err) {
       console.error("[useProdeStore] no se pudo eliminar la predicción", err);
@@ -223,6 +265,7 @@ export function useProdeStore(userId?: string) {
     dbPredictions,
     savedPredictions,
     results,
+    resolvedUserId,
     refresh,
     updatePrediction,
     savePrediction,

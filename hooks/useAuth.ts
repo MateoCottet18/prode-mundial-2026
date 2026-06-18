@@ -18,6 +18,30 @@ import {
   writeStorage,
 } from "@/lib/storage";
 
+/** Repara snapshots viejos de `prode-session` (ej. `id` en vez de `userId`). */
+function normalizeSessionUser(raw: unknown): SessionUser | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const userId =
+    typeof obj.userId === "string"
+      ? obj.userId
+      : typeof obj.id === "string"
+        ? obj.id
+        : null;
+  if (!userId) return null;
+  const username = typeof obj.username === "string" ? obj.username : "";
+  const name = typeof obj.name === "string" ? obj.name : username;
+  const role = obj.role === "admin" ? "admin" : "participante";
+  const paymentStatus =
+    obj.paymentStatus === "approved" ||
+    obj.paymentStatus === "pending_review" ||
+    obj.paymentStatus === "rejected" ||
+    obj.paymentStatus === "pending"
+      ? obj.paymentStatus
+      : "pending";
+  return { userId, username, name, role, paymentStatus };
+}
+
 export type LoginResult =
   | { ok: true; redirectTo: string }
   | {
@@ -52,12 +76,20 @@ export function useAuth() {
     isLoadingRef.current = true;
     console.log("[perf] session refresh");
 
-    const cached = readStorage<SessionUser | null>(storageKeys.session, null);
+    const cached = normalizeSessionUser(readStorage(storageKeys.session, null));
     setUser((current) => current ?? cached);
 
     try {
       const supabaseUser = await getSessionUserFromSupabase();
       if (supabaseUser) {
+        // Si el cache local tiene un userId distinto de profiles.id, lo corregimos
+        // para que la UI no busque predicciones bajo una clave incorrecta.
+        if (cached?.userId && cached.userId !== supabaseUser.userId) {
+          console.warn("[useAuth] session cache userId desfasado — actualizando", {
+            cached: cached.userId,
+            actual: supabaseUser.userId,
+          });
+        }
         writeStorage(storageKeys.session, supabaseUser);
         setUser(supabaseUser);
       } else {
