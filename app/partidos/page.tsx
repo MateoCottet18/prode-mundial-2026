@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MatchCard } from "@/components/MatchCard";
 import { PageHeader } from "@/components/PageHeader";
+import { PartidosPredictionAlert } from "@/components/PartidosPredictionAlert";
 import { KnockoutBracket } from "@/components/bracket/KnockoutBracket";
-import { type Match, type Matchday } from "@/data/matches";
+import { type Match } from "@/data/matches";
 import { useAuth } from "@/hooks/useAuth";
 import { useMatches } from "@/hooks/useMatches";
 import { useProdeStore } from "@/hooks/useProdeStore";
@@ -14,6 +15,13 @@ import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
 import { buildBracket } from "@/lib/bracket/buildBracket";
 import type { ScoreInput } from "@/lib/prode";
 import { getPredictionLockFromResults } from "@/lib/matchTime";
+import {
+  getDefaultPartidosFilter,
+  getMatchesForPartidosFilter,
+  summarizePartidosTab,
+  type PartidosFilter,
+} from "@/lib/partidosUx";
+import { getKnockoutMatches } from "@/lib/standings";
 
 /**
  * Filtros aceptados:
@@ -23,9 +31,7 @@ import { getPredictionLockFromResults } from "@/lib/matchTime";
  * No existen más filtros sueltos para 16avos/octavos/cuartos/etc; toda la
  * fase eliminatoria vive en una única visualización.
  */
-type Filter =
-  | { type: "fecha"; value: Matchday }
-  | { type: "eliminatoria" };
+type Filter = PartidosFilter;
 
 const filters: Filter[] = [
   { type: "fecha", value: 1 },
@@ -55,6 +61,7 @@ export default function PartidosPage() {
   } = useProdeStore(user?.userId ?? undefined, { skipUntilUserId: true });
   const { overridesMap } = useQualificationOverrides();
   const [activeFilter, setActiveFilter] = useState<Filter>({ type: "fecha", value: 1 });
+  const initialFilterSetRef = useRef(false);
 
   // Refresca el "now" cada 60s para que el lock por kickoff cierre la
   // predicción aunque el usuario tenga la pestaña abierta sin interactuar.
@@ -70,6 +77,27 @@ export default function PartidosPage() {
     () => buildBracket(results, matches, overridesMap),
     [results, matches, overridesMap],
   );
+
+  const knockoutMatches = useMemo(() => {
+    const ko = getKnockoutMatches(results, matches, overridesMap);
+    return [
+      ...ko["16avos"],
+      ...ko.octavos,
+      ...ko.cuartos,
+      ...ko.semifinal,
+      ...ko.final,
+      ko.tercerPuesto,
+    ];
+  }, [results, matches, overridesMap]);
+
+  // Pestaña inicial: primera fecha con partidos abiertos (solo al entrar).
+  useEffect(() => {
+    if (initialFilterSetRef.current || !isStoreReady || matches.length === 0) {
+      return;
+    }
+    initialFilterSetRef.current = true;
+    setActiveFilter(getDefaultPartidosFilter(matches, results, new Date()));
+  }, [isStoreReady, matches, results]);
 
   const getLockForMatch = useCallback(
     (match: Match) => getPredictionLockFromResults(match, results, now),
@@ -93,6 +121,18 @@ export default function PartidosPage() {
   // del store (lee auth.uid() en Supabase) por si el session cache está desfasado.
   const participantId = resolvedUserId ?? user?.userId ?? "";
   const canPredict = user?.role === "participante";
+  const userSaved = savedPredictions[participantId] ?? {};
+
+  const activeTabMatches = useMemo(
+    () => getMatchesForPartidosFilter(activeFilter, matches, knockoutMatches),
+    [activeFilter, matches, knockoutMatches],
+  );
+
+  const tabSummary = useMemo(
+    () =>
+      summarizePartidosTab(activeFilter, activeTabMatches, results, userSaved, now),
+    [activeFilter, activeTabMatches, results, userSaved, now],
+  );
 
   const handlePredictionChange = useCallback(
     (matchId: string, side: keyof ScoreInput, value: string) => {
@@ -170,7 +210,6 @@ export default function PartidosPage() {
   const isEliminatoria = activeFilter.type === "eliminatoria";
   const userPredictions = predictions[participantId] ?? {};
   const userDbPredictions = dbPredictions[participantId] ?? {};
-  const userSaved = savedPredictions[participantId] ?? {};
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
@@ -201,6 +240,8 @@ export default function PartidosPage() {
           ) : null}
         </div>
       ) : null}
+
+      {canPredict ? <PartidosPredictionAlert summary={tabSummary} /> : null}
 
       <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
         {filters.map((filter) => {
