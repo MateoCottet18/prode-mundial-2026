@@ -23,7 +23,7 @@ import { getMatchesWithResults, getOverdueMatches } from "@/lib/matchTime";
 
 export default function PerfilPage() {
   const { user, isReady: isAuthReady } = useAuth();
-  const { matches } = useMatches();
+  const { matches, knockoutSchedule } = useMatches();
   // Sólo necesitamos las predicciones del usuario logueado para mostrar la
   // grilla "tus predicciones". El ranking sale de los agregados pre-calculados
   // en SQL, así no bajamos las predicciones de los otros 499 participantes.
@@ -41,8 +41,8 @@ export default function PerfilPage() {
 
   const isAdmin = user?.role === "admin";
   const allMatches = useMemo(
-    () => getAllGeneratedMatches(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => getAllGeneratedMatches(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
 
   if (!isAuthReady) {

@@ -15,7 +15,7 @@ import { useQualificationOverrides } from "@/hooks/useQualificationOverrides";
  * hooks subyacentes; nada se duplica acá).
  */
 export function useBracket() {
-  const { matches, isReady: areMatchesReady } = useMatches();
+  const { matches, knockoutSchedule, isReady: areMatchesReady } = useMatches();
   const {
     predictions,
     savedPredictions,
@@ -33,8 +33,8 @@ export function useBracket() {
   } = useQualificationOverrides();
 
   const bracket = useMemo(
-    () => buildBracket(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => buildBracket(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
 
   return {

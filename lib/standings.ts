@@ -7,6 +7,11 @@ import {
   type TeamSource,
 } from "@/data/matches";
 import { officialRoundOf32Slots, type QualifierSlot } from "@/data/knockout";
+import {
+  mergeKnockoutSchedule,
+  resolveKnockoutSchedule,
+  type KnockoutScheduleMap,
+} from "@/lib/knockoutSchedule";
 import { parseScore, type ResultsByMatch } from "@/lib/prode";
 
 /**
@@ -137,7 +142,9 @@ export function getKnockoutMatches(
   results: ResultsByMatch,
   matchesList: Match[] = staticMatches,
   overrides: QualificationOverrides = {},
+  knockoutScheduleInput: KnockoutScheduleMap = {},
 ) {
+  const schedule = resolveKnockoutSchedule(knockoutScheduleInput);
   const standings = getGroupStandings(results, matchesList);
   const thirdPlacedTeams = getThirdPlacedTeams(standings);
 
@@ -156,14 +163,20 @@ export function getKnockoutMatches(
       overrides,
     );
 
-    return buildKnockoutMatch("16avos", matchIndex, home, away);
+    return mergeKnockoutSchedule(
+      buildKnockoutMatch("16avos", matchIndex, home, away),
+      schedule,
+    );
   });
 
-  const octavos = buildNextRound("octavos", roundOf32, results, overrides);
-  const cuartos = buildNextRound("cuartos", octavos, results, overrides);
-  const semifinal = buildNextRound("semifinal", cuartos, results, overrides);
-  const final = buildNextRound("final", semifinal, results, overrides);
-  const tercerPuesto = buildThirdPlaceMatch(semifinal, results, overrides);
+  const octavos = buildNextRound("octavos", roundOf32, results, overrides, schedule);
+  const cuartos = buildNextRound("cuartos", octavos, results, overrides, schedule);
+  const semifinal = buildNextRound("semifinal", cuartos, results, overrides, schedule);
+  const final = buildNextRound("final", semifinal, results, overrides, schedule);
+  const tercerPuesto = mergeKnockoutSchedule(
+    buildThirdPlaceMatch(semifinal, results, overrides),
+    schedule,
+  );
 
   return {
     "16avos": roundOf32,
@@ -179,8 +192,14 @@ export function getAllGeneratedMatches(
   results: ResultsByMatch,
   matchesList: Match[] = staticMatches,
   overrides: QualificationOverrides = {},
+  knockoutScheduleInput: KnockoutScheduleMap = {},
 ) {
-  const knockout = getKnockoutMatches(results, matchesList, overrides);
+  const knockout = getKnockoutMatches(
+    results,
+    matchesList,
+    overrides,
+    knockoutScheduleInput,
+  );
 
   return [
     ...matchesList,
@@ -358,6 +377,7 @@ function buildNextRound(
   previousRound: Match[],
   results: ResultsByMatch,
   overrides: QualificationOverrides,
+  schedule: KnockoutScheduleMap,
 ) {
   return Array.from({ length: previousRound.length / 2 }, (_, index) => {
     const matchIndex = index + 1;
@@ -377,7 +397,10 @@ function buildNextRound(
       overrides,
     );
 
-    return buildKnockoutMatch(stage, matchIndex, home, away);
+    return mergeKnockoutSchedule(
+      buildKnockoutMatch(stage, matchIndex, home, away),
+      schedule,
+    );
   });
 }
 

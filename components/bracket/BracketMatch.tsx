@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
 import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import type { Match } from "@/data/matches";
@@ -8,6 +8,7 @@ import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
 import type { BracketMode } from "@/types/bracket";
 import { getPredictionCloseLabel, type PredictionLock } from "@/lib/matchTime";
+import { bracketStageShortLabel } from "@/components/bracket/bracketLabels";
 
 type Props = {
   match: Match;
@@ -36,6 +37,8 @@ type Props = {
   highlight?: boolean;
   onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
+  /** Abre el modal de detalle / predicción / resultado. */
+  onMatchOpen?: () => void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
 };
@@ -68,15 +71,15 @@ export function BracketMatch({
   highlight = false,
   onSaveResult,
   onDeleteResult,
+  onMatchOpen,
   onPredictionChange,
   onSavePrediction,
 }: Props) {
   const isAdmin = mode === "admin";
+  const useMatchModal = Boolean(onMatchOpen);
   const isLocked = predictionLock?.locked === true;
-  // El editor sólo aparece para participantes que tienen permiso Y cuyo lock
-  // está abierto. Si el partido ya empezó o tiene resultado, mostramos la
-  // predicción en modo solo lectura.
-  const showPredictionEditor = !isAdmin && canPredict && !isLocked;
+  const showPredictionEditor =
+    !isAdmin && canPredict && !isLocked && !useMatchModal;
 
   const winner = getMatchWinner(match, allResults);
   // Para puntos / view-mode usamos siempre el valor de DB; el input local es
@@ -98,13 +101,14 @@ export function BracketMatch({
   const [syncedBase, setSyncedBase] = useState(baseScore);
   if (
     isAdmin &&
+    !useMatchModal &&
     (syncedBase.home !== baseScore.home || syncedBase.away !== baseScore.away)
   ) {
     setSyncedBase(baseScore);
     setAdminDraft(baseScore);
   }
 
-  const draft = isAdmin ? adminDraft : baseScore;
+  const draft = isAdmin && !useMatchModal ? adminDraft : baseScore;
 
   const draftValid = parseScore(draft);
   const draftDiffers = draft.home !== baseScore.home || draft.away !== baseScore.away;
@@ -149,9 +153,41 @@ export function BracketMatch({
   const homeIsWinner = winner === match.homeTeam;
   const awayIsWinner = winner === match.awayTeam;
 
+  const modalHint = isAdmin
+    ? "Tocá para cargar resultado"
+    : canPredict && !isLocked
+      ? "Tocá para cargar predicción"
+      : "Tocá para ver detalle";
+
+  const handleMatchOpen = () => {
+    if (!useMatchModal || !onMatchOpen) return;
+    onMatchOpen();
+  };
+
+  const handleMatchKeyDown = (event: KeyboardEvent) => {
+    if (!useMatchModal) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onMatchOpen?.();
+    }
+  };
+
   return (
     <article
-      className={`group relative w-[240px] rounded-xl border bg-[#0a1018] px-3 py-2.5 transition-colors duration-200 hover:border-emerald-300/30 ${
+      role={useMatchModal ? "button" : undefined}
+      tabIndex={useMatchModal ? 0 : undefined}
+      onClick={useMatchModal ? handleMatchOpen : undefined}
+      onKeyDown={useMatchModal ? handleMatchKeyDown : undefined}
+      aria-label={
+        useMatchModal
+          ? `${modalHint}: ${match.homeTeam} vs ${match.awayTeam}`
+          : undefined
+      }
+      className={`group relative w-[240px] rounded-xl border bg-[#0a1018] px-3 py-2.5 transition-colors duration-200 ${
+        useMatchModal
+          ? "cursor-pointer hover:border-emerald-300/45 hover:bg-[#0c1418] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300/60"
+          : "hover:border-emerald-300/30"
+      } ${
         highlight
           ? "border-emerald-300/35 bg-[#0c1410]"
           : "border-white/[0.07]"
@@ -164,7 +200,7 @@ export function BracketMatch({
         />
       ) : null}
       <div className="fc-display flex items-center justify-between gap-2 text-[0.6rem] uppercase tracking-[0.18em] text-slate-400">
-        <span>{stageLabel(match.id, match.stage)}</span>
+        <span>{bracketStageShortLabel(match.id, match.stage)}</span>
         <div className="flex items-center gap-1">
           {isManual ? (
             <span
@@ -190,22 +226,50 @@ export function BracketMatch({
 
       <TeamRow
         name={match.homeTeam}
-        score={isAdmin ? draft.home : result?.home}
+        score={
+          useMatchModal
+            ? isAdmin
+              ? result?.home
+              : persistedPrediction?.home ?? prediction?.home
+            : isAdmin
+              ? draft.home
+              : result?.home
+        }
         isWinner={homeIsWinner}
         manual={match.homeTeamSource === "manual"}
-        adminEditable={isAdmin}
+        adminEditable={isAdmin && !useMatchModal}
         onScoreChange={(value) => setAdminDraft((d) => ({ ...d, home: value }))}
       />
       <TeamRow
         name={match.awayTeam}
-        score={isAdmin ? draft.away : result?.away}
+        score={
+          useMatchModal
+            ? isAdmin
+              ? result?.away
+              : persistedPrediction?.away ?? prediction?.away
+            : isAdmin
+              ? draft.away
+              : result?.away
+        }
         isWinner={awayIsWinner}
         manual={match.awayTeamSource === "manual"}
-        adminEditable={isAdmin}
+        adminEditable={isAdmin && !useMatchModal}
         onScoreChange={(value) => setAdminDraft((d) => ({ ...d, away: value }))}
       />
 
-      {isAdmin ? (
+      {useMatchModal ? (
+        <p
+          className={`fc-display mt-2 text-center text-[0.58rem] uppercase tracking-[0.14em] text-slate-500 ${
+            isAdmin
+              ? "group-hover:text-emerald-200/80"
+              : canPredict && !isLocked
+                ? "group-hover:text-cyan-200/80"
+                : "group-hover:text-slate-300"
+          }`}
+        >
+          {modalHint}
+        </p>
+      ) : isAdmin ? (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 text-[0.65rem]">
           <button
             type="button"
@@ -255,13 +319,15 @@ export function BracketMatch({
 
       {/* Revelación de predicciones (sólo participantes, tras el kickoff) */}
       {!isAdmin && canPredict ? (
-        <MatchPredictionsReveal
-          matchId={match.id}
-          revealed={isLocked}
-          homeTeam={match.homeTeam}
-          awayTeam={match.awayTeam}
-          compact
-        />
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <MatchPredictionsReveal
+            matchId={match.id}
+            revealed={isLocked}
+            homeTeam={match.homeTeam}
+            awayTeam={match.awayTeam}
+            compact
+          />
+        </div>
       ) : null}
     </article>
   );
@@ -518,22 +584,4 @@ function TeamRow({
       )}
     </div>
   );
-}
-
-function stageLabel(matchId: string, stage: Match["stage"]) {
-  if (matchId === "tercer-puesto") return "3er puesto";
-  switch (stage) {
-    case "16avos":
-      return "16avos";
-    case "octavos":
-      return "Octavos";
-    case "cuartos":
-      return "Cuartos";
-    case "semifinal":
-      return "Semi";
-    case "final":
-      return "Final";
-    default:
-      return stage;
-  }
 }

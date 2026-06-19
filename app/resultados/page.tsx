@@ -32,7 +32,7 @@ const filters: ResultFilter[] = [
 
 export default function ResultadosPage() {
   const { user, isReady: isAuthReady } = useAuth();
-  const { matches } = useMatches();
+  const { matches, knockoutSchedule } = useMatches();
   // /resultados sólo lee `results`; pasamos userId al store para que el
   // fetch de predicciones quede escopado al usuario logueado y no baje las
   // de los otros 499.
@@ -48,8 +48,8 @@ export default function ResultadosPage() {
   );
   const bestThirds = useMemo(() => getThirdPlacedTeams(standings), [standings]);
   const bracket = useMemo(
-    () => buildBracket(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => buildBracket(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
   const visibleGroupMatches = useMemo(() => {
     if (activeFilter.type !== "grupo") return [];

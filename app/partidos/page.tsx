@@ -43,7 +43,7 @@ const filters: Filter[] = [
 export default function PartidosPage() {
   const router = useRouter();
   const { user, isReady: isAuthReady } = useAuth();
-  const { matches } = useMatches();
+  const { matches, knockoutSchedule } = useMatches();
   // /partidos sólo necesita las predicciones del usuario logueado para los
   // inputs. Pasamos `userId` para que el store no baje las predicciones de
   // los otros 499 participantes (~4 MB que no se usan).
@@ -74,12 +74,12 @@ export default function PartidosPage() {
   }, []);
 
   const bracket = useMemo(
-    () => buildBracket(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => buildBracket(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
 
   const knockoutMatches = useMemo(() => {
-    const ko = getKnockoutMatches(results, matches, overridesMap);
+    const ko = getKnockoutMatches(results, matches, overridesMap, knockoutSchedule);
     return [
       ...ko["16avos"],
       ...ko.octavos,
@@ -88,7 +88,7 @@ export default function PartidosPage() {
       ...ko.final,
       ko.tercerPuesto,
     ];
-  }, [results, matches, overridesMap]);
+  }, [results, matches, overridesMap, knockoutSchedule]);
 
   // Pestaña inicial: primera fecha con partidos abiertos (solo al entrar).
   useEffect(() => {

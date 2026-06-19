@@ -1,5 +1,6 @@
 import type { Match } from "@/data/matches";
 import { FIFA_GROUP_KICKOFF_UTC } from "@/data/kickoffUtc";
+import { FIFA_KNOCKOUT_KICKOFF_UTC } from "@/data/knockoutKickoff";
 import { parseScore, type ResultsByMatch } from "@/lib/prode";
 
 /**
@@ -24,6 +25,7 @@ export function resolveMatchKickoffUtc(match: Match): string | null {
   const raw =
     match.kickoffUtc?.trim() ||
     FIFA_GROUP_KICKOFF_UTC[match.id]?.trim() ||
+    FIFA_KNOCKOUT_KICKOFF_UTC[match.id]?.trim() ||
     null;
   return raw || null;
 }

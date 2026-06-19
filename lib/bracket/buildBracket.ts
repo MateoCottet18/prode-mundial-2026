@@ -1,4 +1,5 @@
 import type { Match } from "@/data/matches";
+import type { KnockoutScheduleMap } from "@/data/knockoutKickoff";
 import type { ResultsByMatch } from "@/lib/prode";
 import {
   getKnockoutMatches,
@@ -23,8 +24,9 @@ export function buildBracket(
   results: ResultsByMatch,
   matchesList: Match[],
   overrides: QualificationOverrides = {},
+  knockoutSchedule: KnockoutScheduleMap = {},
 ): BracketLayout {
-  const ko = getKnockoutMatches(results, matchesList, overrides);
+  const ko = getKnockoutMatches(results, matchesList, overrides, knockoutSchedule);
 
   return {
     left: {

@@ -25,7 +25,7 @@ type SectionId = "payments" | "overrides" | "bracket" | "results";
 
 export default function AdminPage() {
   const { user, isReady: isAuthReady } = useAuth();
-  const { matches } = useMatches();
+  const { matches, knockoutSchedule } = useMatches();
   // El admin no necesita predicciones de nadie en este screen, sólo resultados.
   // Pasamos su userId para que el store filtre por user_id (admin no predice,
   // así que el fetch vuelve vacío en vez de bajar 52k filas).
@@ -46,12 +46,12 @@ export default function AdminPage() {
   } = useQualificationOverrides();
 
   const allMatches = useMemo(
-    () => getAllGeneratedMatches(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => getAllGeneratedMatches(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
   const bracketLayout = useMemo(
-    () => buildBracket(results, matches, overridesMap),
-    [results, matches, overridesMap],
+    () => buildBracket(results, matches, overridesMap, knockoutSchedule),
+    [results, matches, overridesMap, knockoutSchedule],
   );
 
   const [openSection, setOpenSection] = useState<SectionId | null>(null);

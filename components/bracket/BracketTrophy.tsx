@@ -21,6 +21,7 @@ type Props = {
   getPredictionLock?: (match: Match) => PredictionLock;
   onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
+  onMatchOpen?: (match: Match) => void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
 };
@@ -44,6 +45,7 @@ export function BracketTrophy({
   getPredictionLock,
   onSaveResult,
   onDeleteResult,
+  onMatchOpen,
   onPredictionChange,
   onSavePrediction,
 }: Props) {
@@ -103,6 +105,7 @@ export function BracketTrophy({
         highlight
         onSaveResult={onSaveResult}
         onDeleteResult={onDeleteResult}
+        onMatchOpen={onMatchOpen ? () => onMatchOpen(finalMatch) : undefined}
         onPredictionChange={onPredictionChange}
         onSavePrediction={onSavePrediction}
       />
@@ -123,6 +126,7 @@ export function BracketTrophy({
           allResults={results}
           onSaveResult={onSaveResult}
           onDeleteResult={onDeleteResult}
+          onMatchOpen={onMatchOpen ? () => onMatchOpen(thirdPlaceMatch) : undefined}
           onPredictionChange={onPredictionChange}
           onSavePrediction={onSavePrediction}
         />
