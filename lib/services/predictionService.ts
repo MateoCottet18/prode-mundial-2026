@@ -160,6 +160,7 @@ export async function fetchRankingAggregatesFromSupabase(): Promise<
 export type MatchPredictionEntry = {
   userId: string;
   name: string;
+  username: string | null;
   home: number;
   away: number;
   outcome: "local" | "empate" | "visitante";
@@ -241,6 +242,7 @@ export async function fetchMatchPredictions(
     entries.push({
       userId: row.user_id,
       name: profile.name?.trim() || profile.username || "Participante",
+      username: profile.username?.trim() || null,
       home: row.home_goals,
       away: row.away_goals,
       outcome: getResult(row.home_goals, row.away_goals),

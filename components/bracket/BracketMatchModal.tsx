@@ -32,6 +32,8 @@ type Props = {
   saveError?: string | null;
   points?: number | null;
   canRevealPredictions?: boolean;
+  /** Admin: listado de predicciones siempre disponible en el modal. */
+  adminPreviewPredictions?: boolean;
   onClose: () => void;
   onDraftChange: (side: keyof ScoreInput, value: string) => void;
   onSave: () => void;
@@ -55,6 +57,7 @@ export function BracketMatchModal({
   saveError,
   points = null,
   canRevealPredictions = false,
+  adminPreviewPredictions = false,
   onClose,
   onDraftChange,
   onSave,
@@ -246,11 +249,12 @@ export function BracketMatchModal({
             </p>
           ) : null}
 
-          {canRevealPredictions ? (
+          {canRevealPredictions || adminPreviewPredictions ? (
             <div className="mt-5 border-t border-white/[0.06] pt-4">
               <MatchPredictionsReveal
                 matchId={match.id}
-                revealed
+                revealed={canRevealPredictions}
+                adminPreview={adminPreviewPredictions}
                 homeTeam={match.homeTeam}
                 awayTeam={match.awayTeam}
               />

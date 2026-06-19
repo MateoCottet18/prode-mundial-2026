@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type MouseEvent } from "react";
 import {
   fetchMatchPredictions,
   type MatchPredictionEntry,
@@ -11,22 +11,27 @@ type Props = {
   matchId: string;
   /**
    * `true` cuando el partido ya comenzó (kickoff pasó o hay resultado
-   * cargado). Antes del kickoff las predicciones ajenas quedan ocultas.
+   * cargado). Antes del kickoff las predicciones ajenas quedan ocultas
+   * para participantes.
    */
   revealed: boolean;
   homeTeam: string;
   awayTeam: string;
   /** Variante reducida para el bracket (cards angostas de ~240px). */
   compact?: boolean;
+  /**
+   * Admin: puede abrir el listado en cualquier momento (antes del kickoff,
+   * sin resultado, etc.). Sólo lectura desde `public.predictions`.
+   */
+  adminPreview?: boolean;
 };
 
 /**
  * Bloque "Ver predicciones".
  *
- * - Antes del kickoff (`revealed === false`): muestra un aviso y no permite ver
- *   nada.
- * - Desde el kickoff: botón que, al abrirse, trae TODAS las predicciones del
- *   partido desde Supabase (no estado local) + un resumen agregado.
+ * - Participantes: antes del kickoff no ven nada; desde el kickoff, botón
+ *   que trae todas las predicciones del partido desde Supabase.
+ * - Admin (`adminPreview`): siempre puede abrir el listado completo.
  *
  * Es sólo visualización: no edita, no afecta puntos/ranking/resultados.
  */
@@ -36,12 +41,15 @@ export function MatchPredictionsReveal({
   homeTeam,
   awayTeam,
   compact = false,
+  adminPreview = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<MatchPredictionEntry[] | null>(null);
   const [summary, setSummary] = useState<MatchPredictionsSummary | null>(null);
+
+  const canOpen = adminPreview || revealed;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,7 +67,8 @@ export function MatchPredictionsReveal({
     }
   }, [matchId]);
 
-  const handleToggle = () => {
+  const handleToggle = (event?: MouseEvent) => {
+    event?.stopPropagation();
     const next = !open;
     setOpen(next);
     if (next && entries === null && !loading) {
@@ -67,7 +76,7 @@ export function MatchPredictionsReveal({
     }
   };
 
-  if (!revealed) {
+  if (!canOpen) {
     return (
       <p
         className={`mt-3 flex items-center gap-1.5 border-l-2 border-slate-500/50 bg-white/[0.02] px-3 py-2 text-slate-400 ${
@@ -81,7 +90,7 @@ export function MatchPredictionsReveal({
   }
 
   return (
-    <div className="mt-3">
+    <div className="mt-3" onClick={(event) => event.stopPropagation()}>
       <button
         type="button"
         onClick={handleToggle}
@@ -93,6 +102,12 @@ export function MatchPredictionsReveal({
         <span aria-hidden>{open ? "▾" : "▸"}</span>
         {open ? "Ocultar predicciones" : "Ver predicciones"}
       </button>
+
+      {adminPreview && !revealed ? (
+        <p className={`mt-1.5 text-slate-500 ${compact ? "text-[0.55rem]" : "text-[0.65rem]"}`}>
+          Vista admin: visible antes del kickoff.
+        </p>
+      ) : null}
 
       {open ? (
         <div className="mt-2">
@@ -111,18 +126,27 @@ export function MatchPredictionsReveal({
             <>
               <Summary summary={summary} homeTeam={homeTeam} awayTeam={awayTeam} compact={compact} />
               <ul
-                className={`mt-2 space-y-1 overflow-y-auto ${compact ? "max-h-44" : "max-h-64"}`}
+                className={`mt-2 space-y-1.5 overflow-y-auto ${compact ? "max-h-44" : "max-h-64"}`}
               >
                 {entries.map((entry) => (
                   <li
                     key={entry.userId}
-                    className={`flex items-center justify-between gap-2 border-b border-white/[0.05] pb-1 ${
+                    className={`flex items-center justify-between gap-2 border-b border-white/[0.05] pb-1.5 ${
                       compact ? "text-[0.62rem]" : "text-[0.78rem]"
                     }`}
                   >
-                    <span className="min-w-0 truncate text-slate-200">{entry.name}</span>
+                    <div className="min-w-0">
+                      <p className="truncate text-slate-200">{entry.name}</p>
+                      {entry.username && entry.username !== entry.name ? (
+                        <p className="truncate text-[0.85em] text-slate-500">@{entry.username}</p>
+                      ) : entry.username ? (
+                        <p className="truncate text-[0.85em] text-slate-500">@{entry.username}</p>
+                      ) : null}
+                    </div>
                     <span className="fc-display shrink-0 tabular-nums text-white">
-                      {entry.home}<span className="px-0.5 text-slate-500">-</span>{entry.away}
+                      {entry.home}
+                      <span className="px-0.5 text-slate-500">-</span>
+                      {entry.away}
                     </span>
                   </li>
                 ))}

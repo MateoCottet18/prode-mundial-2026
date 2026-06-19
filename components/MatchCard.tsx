@@ -285,8 +285,16 @@ export function MatchCard({
         </div>
       ) : null}
 
-      {/* REVELACIÓN DE PREDICCIONES (sólo participantes, tras el kickoff) */}
-      {canPredict ? (
+      {/* REVELACIÓN DE PREDICCIONES */}
+      {canManageResult ? (
+        <MatchPredictionsReveal
+          matchId={match.id}
+          revealed={false}
+          adminPreview
+          homeTeam={match.homeTeam}
+          awayTeam={match.awayTeam}
+        />
+      ) : canPredict ? (
         <MatchPredictionsReveal
           matchId={match.id}
           revealed={isLocked}

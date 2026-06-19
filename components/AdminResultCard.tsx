@@ -1,5 +1,6 @@
 import { ScoreField } from "@/components/ScoreField";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
+import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import type { Match } from "@/data/matches";
 import { parseScore, type ScoreInput } from "@/lib/prode";
 
@@ -139,6 +140,14 @@ export function AdminResultCard({
           Borrar
         </button>
       </div>
+
+      <MatchPredictionsReveal
+        matchId={match.id}
+        revealed={false}
+        adminPreview
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+      />
 
       <p className="mt-auto pt-4 text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
         {match.venue}

@@ -317,8 +317,19 @@ export function BracketMatch({
         />
       )}
 
-      {/* Revelación de predicciones (sólo participantes, tras el kickoff) */}
-      {!isAdmin && canPredict ? (
+      {/* Revelación de predicciones */}
+      {isAdmin ? (
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <MatchPredictionsReveal
+            matchId={match.id}
+            revealed={false}
+            adminPreview
+            homeTeam={match.homeTeam}
+            awayTeam={match.awayTeam}
+            compact
+          />
+        </div>
+      ) : canPredict ? (
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <MatchPredictionsReveal
             matchId={match.id}
