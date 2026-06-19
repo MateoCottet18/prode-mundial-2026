@@ -13,7 +13,7 @@ import {
   deletePredictionFromSupabase,
   fetchPredictionsFromSupabase,
   PredictionSaveError,
-  recalculatePredictionPoints,
+  recalculatePredictionPointsViaApi,
   savePredictionToSupabase,
 } from "@/lib/services/predictionService";
 import {
@@ -168,7 +168,6 @@ export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
         userId: resolvedUserId ?? lookupUserId,
         matchId,
         score,
-        results,
       });
       await refresh();
       return true;
@@ -215,9 +214,9 @@ export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
 
     try {
       await saveResultToSupabase(matchId, score);
-      const nextResults = { ...results, [matchId]: score };
-      await recalculatePredictionPoints(nextResults);
+      await recalculatePredictionPointsViaApi();
       window.dispatchEvent(new Event("prode-store-change"));
+      await refresh();
       return true;
     } catch (err) {
       console.error("[useProdeStore] no se pudo guardar el resultado", err);
@@ -235,10 +234,9 @@ export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
 
     try {
       await deleteResultFromSupabase(matchId);
-      const nextResults = { ...results };
-      delete nextResults[matchId];
-      await recalculatePredictionPoints(nextResults);
+      await recalculatePredictionPointsViaApi();
       window.dispatchEvent(new Event("prode-store-change"));
+      await refresh();
     } catch (err) {
       console.error("[useProdeStore] no se pudo borrar el resultado", err);
       setError(err instanceof Error ? err.message : "No se pudo borrar el resultado.");
@@ -247,8 +245,9 @@ export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
 
   const recalculatePoints = async () => {
     try {
-      await recalculatePredictionPoints(results);
+      await recalculatePredictionPointsViaApi();
       await refresh();
+      window.dispatchEvent(new Event("prode-store-change"));
     } catch (err) {
       console.error("[useProdeStore] error recalculando puntos", err);
       setError(err instanceof Error ? err.message : "No se pudo recalcular puntos.");

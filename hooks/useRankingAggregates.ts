@@ -58,5 +58,12 @@ export function useRankingAggregates() {
     return () => window.removeEventListener("prode-store-change", handler);
   }, [refresh]);
 
+  // Refresco periódico: el evento prode-store-change sólo corre en el browser
+  // del admin; otros usuarios en /tabla necesitan polling para ver puntos nuevos.
+  useEffect(() => {
+    const id = window.setInterval(() => void refresh(), 120_000);
+    return () => window.clearInterval(id);
+  }, [refresh]);
+
   return { aggregates, isReady, error, refresh };
 }

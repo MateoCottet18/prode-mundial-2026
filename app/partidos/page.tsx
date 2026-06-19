@@ -147,16 +147,18 @@ export default function PartidosPage() {
       if (!participantId) {
         return false;
       }
-      const match = matches.find((candidate) => candidate.id === matchId);
+      const match =
+        matches.find((candidate) => candidate.id === matchId) ??
+        knockoutMatches.find((candidate) => candidate.id === matchId);
       if (match) {
-        const lock = getPredictionLockFromResults(match, results, new Date());
+        const lock = getPredictionLockFromResults(match, results, now);
         if (lock.locked) {
           return false;
         }
       }
       return savePrediction(participantId, matchId);
     },
-    [matches, participantId, results, savePrediction],
+    [matches, knockoutMatches, participantId, results, savePrediction, now],
   );
 
   if (isAuthReady && user && !isStoreReady) {

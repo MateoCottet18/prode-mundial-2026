@@ -24,7 +24,9 @@ export type Match = {
   stage: Stage;
   date: string;
   time: string;
-  /** Kickoff oficial en hora Argentina (ISO con offset -03:00). Fuente de verdad para cierre. */
+  /** Kickoff oficial FIFA (UTC ISO). Fuente de verdad para cierre. */
+  kickoffUtc?: string | null;
+  /** @deprecated Mismo instante que kickoffUtc; mantener sincronizado en DB. */
   kickoffArgentina?: string | null;
   homeTeam: string;
   awayTeam: string;

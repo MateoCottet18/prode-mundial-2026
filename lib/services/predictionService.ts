@@ -270,7 +270,12 @@ export class PredictionSaveError extends Error {
       | "invalid_score"
       | "no_session"
       | "user_mismatch"
-      | "supabase_error",
+      | "supabase_error"
+      | "result_loaded"
+      | "kickoff_passed"
+      | "schedule_unconfirmed"
+      | "admin_cannot_predict"
+      | "blocked",
     public readonly details?: string,
   ) {
     super(message);
@@ -278,121 +283,94 @@ export class PredictionSaveError extends Error {
   }
 }
 
+async function getAccessToken(): Promise<string | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
 /**
- * Persiste una predicción en `public.predictions`.
+ * Persiste una predicción vía POST /api/predictions/save (server-side).
  *
- * Requisitos de producción:
- * - `user_id` DEBE ser `auth.users.id` (UUID), no username.
- * - El cliente Supabase DEBE tener sesión activa (RLS: auth.uid() = user_id).
- * - Upsert sobre unique (user_id, match_id).
+ * El endpoint valida kickoff Argentina, ausencia de resultado y sesión real.
+ * Supabase RLS + trigger SQL son defensa adicional si alguien intenta bypass.
  */
 export async function savePredictionToSupabase({
   userId,
   matchId,
   score,
-  results,
 }: {
   userId: string;
   matchId: string;
   score: ScoreInput;
-  results: ResultsByMatch;
+  results?: ResultsByMatch;
 }) {
   const parsedScore = parseScore(score);
 
-  console.log("[prediction] intentando guardar");
+  console.log("[prediction] intentando guardar (API)");
   console.log("[prediction] userId (caller)", userId);
   console.log("[prediction] matchId", matchId);
-  console.log("[prediction] home_goals", parsedScore?.home ?? score.home);
-  console.log("[prediction] away_goals", parsedScore?.away ?? score.away);
 
   if (!isSupabaseConfigured()) {
-    const msg =
-      "Supabase no está configurado. Revisá NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.";
-    console.error("[prediction] error Supabase", msg);
-    throw new PredictionSaveError(msg, "not_configured");
-  }
-
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    const msg = "No se pudo crear el cliente de Supabase.";
-    console.error("[prediction] error Supabase", msg);
-    throw new PredictionSaveError(msg, "not_configured");
-  }
-
-  if (!parsedScore) {
-    const msg = "Marcá un resultado válido (goles 0 o más) antes de guardar.";
-    console.error("[prediction] error Supabase", msg);
-    throw new PredictionSaveError(msg, "invalid_score");
-  }
-
-  const {
-    data: { user: authUser },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !authUser) {
-    const msg =
-      "Sesión expirada o no iniciada. Cerrá sesión, volvé a entrar e intentá de nuevo.";
-    console.error("[prediction] error Supabase", authError?.message ?? "sin auth.uid()");
-    throw new PredictionSaveError(msg, "no_session", authError?.message);
-  }
-
-  const authUserId = authUser.id;
-  console.log("[prediction] auth.uid()", authUserId);
-
-  if (userId !== authUserId) {
-    console.warn("[prediction] userId del caller no coincide con auth.uid()", {
-      caller: userId,
-      auth: authUserId,
-    });
-    // Siempre persistimos con auth.uid(): es lo que exige RLS.
-  }
-
-  const points = calculatePoints(score, results[matchId], true) ?? 0;
-
-  const { data, error } = await supabase
-    .from("predictions")
-    .upsert(
-      {
-        user_id: authUserId,
-        match_id: matchId,
-        home_goals: parsedScore.home,
-        away_goals: parsedScore.away,
-        points,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,match_id" },
-    )
-    .select("user_id,match_id,home_goals,away_goals,points")
-    .single();
-
-  if (error) {
-    console.error("[prediction] error Supabase", error.message, error.code, error.details);
-    const hint =
-      error.code === "42501"
-        ? " Permiso denegado por RLS: verificá que estés logueado y que user_id = auth.uid()."
-        : "";
     throw new PredictionSaveError(
-      `${error.message}${hint}`,
-      "supabase_error",
-      error.details ?? error.hint,
+      "Supabase no está configurado. Revisá NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      "not_configured",
     );
   }
 
-  if (!data) {
-    const msg = "Supabase no devolvió la fila guardada.";
-    console.error("[prediction] error Supabase", msg);
-    throw new PredictionSaveError(msg, "supabase_error");
+  if (!parsedScore) {
+    throw new PredictionSaveError(
+      "Marcá un resultado válido (goles 0 o más) antes de guardar.",
+      "invalid_score",
+    );
   }
 
-  console.log("[prediction] guardado OK", {
-    user_id: data.user_id,
-    match_id: data.match_id,
-    home_goals: data.home_goals,
-    away_goals: data.away_goals,
-    points: data.points,
+  const token = await getAccessToken();
+  if (!token) {
+    throw new PredictionSaveError(
+      "Sesión expirada o no iniciada. Cerrá sesión, volvé a entrar e intentá de nuevo.",
+      "no_session",
+    );
+  }
+
+  const response = await fetch("/api/predictions/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      matchId,
+      homeGoals: parsedScore.home,
+      awayGoals: parsedScore.away,
+    }),
   });
 
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    code?: PredictionSaveError["code"];
+    ok?: boolean;
+  };
+
+  if (!response.ok) {
+    const code =
+      payload.code ??
+      (response.status === 401
+        ? "no_session"
+        : response.status === 403
+          ? "blocked"
+          : "supabase_error");
+    console.error("[prediction] error API", payload.error ?? response.statusText, code);
+    throw new PredictionSaveError(
+      payload.error ?? "No se pudo guardar la predicción.",
+      code,
+    );
+  }
+
+  console.log("[prediction] guardado OK (API)", { matchId, userId });
   return true;
 }
 
@@ -430,24 +408,32 @@ export async function deletePredictionFromSupabase(userId: string, matchId: stri
 }
 
 /**
- * Recalcula `points` para TODAS las predicciones según los resultados pasados.
+ * Recalcula `points` para TODAS las predicciones leyendo resultados desde la DB.
  *
- * Implementación optimizada para ~100-300 participantes:
- *   1. Traemos todas las predicciones (incluyendo `points` actual).
- *   2. Calculamos el nuevo valor en memoria.
- *   3. Agrupamos los IDs por valor de `points` y SÓLO actualizamos las filas
- *      que cambian, en pocas queries.
- *
- * En la práctica `calculatePoints` devuelve 0/1/3, así que en el peor caso
- * son 3 buckets → 3 UPDATEs (chunkeados a 500 ids por seguridad de URL).
- * Antes hacíamos un UPDATE por predicción (hasta 10k+ requests en paralelo,
- * que saturaba el free tier de Supabase).
+ * Preferir `recalculatePredictionPointsViaApi` (admin) en producción: usa service
+ * role y evita depender del mapa `results` del cliente.
  */
-export async function recalculatePredictionPoints(results: ResultsByMatch) {
+export async function recalculatePredictionPoints(resultsOverride?: ResultsByMatch) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return false;
+  }
+
+  let results = resultsOverride;
+  if (!results) {
+    const { data: resultRows, error: resultError } = await supabase
+      .from("results")
+      .select("match_id,home_goals,away_goals");
+    if (resultError) {
+      throw new Error(resultError.message);
+    }
+    results = Object.fromEntries(
+      (resultRows ?? []).map((row) => [
+        row.match_id,
+        toScoreInput(row.home_goals, row.away_goals),
+      ]),
+    ) as ResultsByMatch;
   }
 
   const { data, error } = await supabase
@@ -460,6 +446,7 @@ export async function recalculatePredictionPoints(results: ResultsByMatch) {
 
   const idsByPoints = new Map<number, string[]>();
   for (const row of data ?? []) {
+    if (!row.id) continue;
     const score = toScoreInput(row.home_goals, row.away_goals);
     const next = calculatePoints(score, results[row.match_id], true) ?? 0;
     if (next === row.points) {
@@ -473,8 +460,6 @@ export async function recalculatePredictionPoints(results: ResultsByMatch) {
     }
   }
 
-  // Chunkeamos por seguridad de URL (Supabase REST usa GET-style filters
-  // en updates con .in() y URLs >8KB pueden romperse en algunos proxies).
   const CHUNK_SIZE = 500;
   for (const [points, ids] of idsByPoints) {
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
@@ -489,5 +474,31 @@ export async function recalculatePredictionPoints(results: ResultsByMatch) {
     }
   }
 
+  return true;
+}
+
+/** Recalcula puntos vía API admin (service role + resultados desde DB). */
+export async function recalculatePredictionPointsViaApi(): Promise<boolean> {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Volvé a iniciar sesión.");
+  }
+
+  const response = await fetch("/api/admin/recalculate-points", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    ok?: boolean;
+    updated?: number;
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "No se pudo recalcular puntos.");
+  }
+
+  console.log("[prediction] recalc OK (API)", payload);
   return true;
 }

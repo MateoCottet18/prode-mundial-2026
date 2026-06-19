@@ -37,18 +37,11 @@ export type RankingEntry = {
 /**
  * Aplica el orden oficial de desempate al ranking ya con stats por usuario.
  *
- * Orden definitivo (siempre hay UN ganador):
- *   1. points                desc (mayor puntaje gana)
- *   2. exactCount            desc (más resultados exactos)
- *   3. correctOutcomesCount  desc (más aciertos totales)
- *   4. createdAt             asc  (orden de inscripción: el más viejo gana)
- *   5. username              asc  (último fallback estable si createdAt
- *                                  faltase o coincidiera al microsegundo)
- *
- * Como el `createdAt` es un timestamp con precisión de microsegundos en
- * Postgres, dos participantes nunca van a empatar al final: el ranking
- * SIEMPRE define un ganador único. Por eso `rank` es simplemente
- * `index + 1` — ya no hay posiciones compartidas.
+ * Orden oficial de desempate:
+ *   1. points                desc
+ *   2. exactCount            desc
+ *   3. correctOutcomesCount  desc
+ *   4. username              asc
  */
 function sortAndRank(
   entries: Omit<RankingEntry, "rank">[],
@@ -59,22 +52,9 @@ function sortAndRank(
         b.points - a.points ||
         b.exactCount - a.exactCount ||
         b.correctOutcomesCount - a.correctOutcomesCount ||
-        compareCreatedAtAsc(a.createdAt, b.createdAt) ||
-        a.username.localeCompare(b.username),
+        a.username.localeCompare(b.username, "es", { sensitivity: "base" }),
     )
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
-}
-
-/**
- * Compara `createdAt` ascendente (el más viejo primero). Las entries sin
- * `createdAt` se mandan al final — son usuarios legacy / fallback localStorage
- * que no tienen timestamp de Supabase.
- */
-function compareCreatedAtAsc(a?: string, b?: string): number {
-  if (a && b) return a.localeCompare(b);
-  if (a) return -1;
-  if (b) return 1;
-  return 0;
 }
 
 /**
@@ -120,12 +100,11 @@ export function buildRankingFromAggregates(
 /**
  * Construye el ranking de participantes con criterio oficial de desempate.
  *
- * Orden definitivo (siempre define un único ganador):
+ * Orden oficial de desempate:
  *   1. points                desc
  *   2. exactCount            desc
  *   3. correctOutcomesCount  desc
- *   4. createdAt             asc  (orden de inscripción)
- *   5. username              asc  (fallback)
+ *   4. username              asc
  *
  * El cálculo de `points` no cambia: sigue usando `calculatePoints` (3/1/0).
  * Las estadísticas extras se recolectan recorriendo los matches una sola

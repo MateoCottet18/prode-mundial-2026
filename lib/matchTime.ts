@@ -1,28 +1,36 @@
 import type { Match } from "@/data/matches";
+import { FIFA_GROUP_KICKOFF_UTC } from "@/data/kickoffUtc";
 import { parseScore, type ResultsByMatch } from "@/lib/prode";
 
 /**
  * Horarios de partidos y cierre de predicciones.
  *
- * Fuente de verdad: `match.kickoffArgentina` (columna `kickoff_argentina` en
- * Supabase). Debe ser un instante ISO con offset Argentina, por ejemplo:
- *   "2026-06-14T01:00:00-03:00"
+ * Fuente de verdad: `kickoff_utc` en Supabase (horario oficial FIFA en UTC).
+ * La UI muestra la hora convertida a America/Argentina/Buenos_Aires.
  *
- * Regla de cierre (simple):
- *   now >= kickoffArgentina → cerrado por inicio
- *   now < kickoffArgentina  → abierto
- *   + resultado cargado     → cerrado (prioridad máxima)
+ * Regla de cierre:
+ *   now >= kickoffUtc → cerrado por inicio
+ *   now < kickoffUtc  → abierto
+ *   + resultado cargado → cerrado (prioridad máxima)
  *
  * NO se convierte desde EDT, sede, ciudad ni timezone del navegador.
- * Los partidos sin `kickoffArgentina` (ej. eliminatorias "A definir") nunca
- * se cierran por kickoff.
+ * Sin kickoffUtc confirmado → cerrado ("Horario no confirmado").
  */
 
 export const ARGENTINA_TZ = "America/Argentina/Buenos_Aires";
 
-/** Parsea el kickoff oficial Argentina del partido. */
+/** Resuelve el instante UTC del kickoff (DB → mapa FIFA). Sin legacy kickoffArgentina. */
+export function resolveMatchKickoffUtc(match: Match): string | null {
+  const raw =
+    match.kickoffUtc?.trim() ||
+    FIFA_GROUP_KICKOFF_UTC[match.id]?.trim() ||
+    null;
+  return raw || null;
+}
+
+/** Parsea el kickoff oficial del partido como Date (instante UTC). */
 export function parseMatchKickoff(match: Match): Date | null {
-  const raw = match.kickoffArgentina?.trim();
+  const raw = resolveMatchKickoffUtc(match);
   if (!raw) return null;
   const instant = new Date(raw);
   return Number.isNaN(instant.getTime()) ? null : instant;
@@ -143,16 +151,17 @@ export function matchStatusLabel(status: ReturnType<typeof getMatchStatus>): str
 
 export type PredictionLock =
   | { locked: false }
-  | { locked: true; reason: "result" | "kickoff"; message: string };
+  | { locked: true; reason: "result" | "kickoff" | "schedule"; message: string };
 
 const loggedLockStates = new Set<string>();
 
 function logLock(match: Match, kickoff: Date | null, now: Date, lock: PredictionLock): void {
   const reason = lock.locked ? lock.reason : "open";
-  const key = `${match.id}|${lock.locked}|${reason}|${match.kickoffArgentina ?? ""}`;
+  const key = `${match.id}|${lock.locked}|${reason}|${resolveMatchKickoffUtc(match) ?? ""}`;
   if (loggedLockStates.has(key)) return;
   loggedLockStates.add(key);
   console.log("[lock] matchId", match.id);
+  console.log("[lock] kickoffUtc", resolveMatchKickoffUtc(match) ?? "sin fecha");
   console.log("[lock] kickoffArgentina", kickoff ? formatDateTimeArgentina(kickoff) : "sin fecha");
   console.log("[lock] nowArgentina", formatDateTimeArgentina(now));
   console.log("[lock] locked", lock.locked);
@@ -173,7 +182,13 @@ export function getPredictionLock(
       reason: "result",
       message: "Predicción cerrada: el resultado ya fue cargado.",
     };
-  } else if (kickoff && now.getTime() >= kickoff.getTime()) {
+  } else if (!kickoff) {
+    lock = {
+      locked: true,
+      reason: "schedule",
+      message: "Horario no confirmado.",
+    };
+  } else if (now.getTime() >= kickoff.getTime()) {
     lock = {
       locked: true,
       reason: "kickoff",

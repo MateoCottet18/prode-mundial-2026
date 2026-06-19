@@ -1,7 +1,7 @@
 import type { GroupName, Match, Matchday, Stage } from "@/data/matches";
+import { formatKickoffArgentinaFromUtc } from "@/data/kickoffUtc";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { MatchRow } from "@/lib/supabase/types";
-
 /**
  * Servicio de partidos.
  *
@@ -24,7 +24,7 @@ export async function fetchMatchesFromSupabase(): Promise<Match[] | null> {
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id,home_team,away_team,match_date,kickoff_time,kickoff_argentina,group_name,stage,matchday,venue,city",
+      "id,home_team,away_team,match_date,kickoff_time,kickoff_utc,kickoff_argentina,kickoff_argentina_display,group_name,stage,matchday,venue,city",
     )
     .order("matchday", { ascending: true, nullsFirst: false })
     .order("id", { ascending: true });
@@ -57,9 +57,11 @@ function rowToMatch(row: MatchRow): Match {
     matchday: row.matchday ? (row.matchday as Matchday) : null,
     stage: row.stage,
     date: row.match_date ?? "A definir",
-    time: row.kickoff_time ?? "A definir",
-    kickoffArgentina: row.kickoff_argentina ?? null,
-    homeTeam: row.home_team,
+    time: row.kickoff_utc
+      ? formatKickoffArgentinaFromUtc(row.kickoff_utc)
+      : (row.kickoff_time ?? "A definir"),
+    kickoffUtc: row.kickoff_utc ?? null,
+    kickoffArgentina: row.kickoff_argentina ?? null,    homeTeam: row.home_team,
     awayTeam: row.away_team,
     venue: row.venue ?? "",
     city: row.city ?? "",

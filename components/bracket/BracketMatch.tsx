@@ -353,7 +353,11 @@ function PredictionEditor({
         <p className="fc-display mt-1 text-[0.55rem] uppercase tracking-[0.12em] text-slate-400">
           Cierra: {closeLabel} (hora Argentina)
         </p>
-      ) : null}
+      ) : (
+        <p className="fc-display mt-1 text-[0.55rem] uppercase tracking-[0.12em] text-slate-500">
+          Horario no confirmado
+        </p>
+      )}
       {saveError ? (
         <p className="mt-1 text-[0.65rem] text-red-300" role="alert">
           {saveError}

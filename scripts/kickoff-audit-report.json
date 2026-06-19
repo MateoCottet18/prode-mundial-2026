@@ -1,0 +1,827 @@
+{
+  "generatedAt": "2026-06-19T02:49:09.896Z",
+  "audit": [
+    {
+      "id": "a-1",
+      "teams": "México vs Sudáfrica",
+      "kickoff_argentina_actual": "2026-06-11T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-11T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "a-2",
+      "teams": "Corea del Sur vs Chequia",
+      "kickoff_argentina_actual": "2026-06-11T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-12T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": -1,
+      "cambiado": true
+    },
+    {
+      "id": "a-3",
+      "teams": "Chequia vs Sudáfrica",
+      "kickoff_argentina_actual": "2026-06-18T13:00:00-03:00",
+      "hora_argentina_actual": "13:00",
+      "kickoff_utc_correcto": "2026-06-18T16:00:00Z",
+      "hora_argentina_correcta": "13:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "a-4",
+      "teams": "México vs Corea del Sur",
+      "kickoff_argentina_actual": "2026-06-18T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-19T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "a-5",
+      "teams": "Chequia vs México",
+      "kickoff_argentina_actual": "2026-06-24T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-25T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "a-6",
+      "teams": "Sudáfrica vs Corea del Sur",
+      "kickoff_argentina_actual": "2026-06-24T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-25T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "b-1",
+      "teams": "Canadá vs Bosnia y Herzegovina",
+      "kickoff_argentina_actual": "2026-06-12T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-12T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "b-2",
+      "teams": "Qatar vs Suiza",
+      "kickoff_argentina_actual": "2026-06-13T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-13T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "b-3",
+      "teams": "Suiza vs Bosnia y Herzegovina",
+      "kickoff_argentina_actual": "2026-06-18T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-18T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "b-4",
+      "teams": "Canadá vs Qatar",
+      "kickoff_argentina_actual": "2026-06-18T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-18T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 3,
+      "cambiado": true
+    },
+    {
+      "id": "b-5",
+      "teams": "Suiza vs Canadá",
+      "kickoff_argentina_actual": "2026-06-24T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-24T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 6,
+      "cambiado": true
+    },
+    {
+      "id": "b-6",
+      "teams": "Bosnia y Herzegovina vs Qatar",
+      "kickoff_argentina_actual": "2026-06-24T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-24T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "c-1",
+      "teams": "Brasil vs Marruecos",
+      "kickoff_argentina_actual": "2026-06-13T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-13T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "c-2",
+      "teams": "Haití vs Escocia",
+      "kickoff_argentina_actual": "2026-06-13T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-14T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "c-3",
+      "teams": "Escocia vs Marruecos",
+      "kickoff_argentina_actual": "2026-06-19T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-19T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "c-4",
+      "teams": "Brasil vs Haití",
+      "kickoff_argentina_actual": "2026-06-19T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-20T00:30:00Z",
+      "hora_argentina_correcta": "21:30",
+      "diferencia_horas": 0.5,
+      "cambiado": true
+    },
+    {
+      "id": "c-5",
+      "teams": "Escocia vs Brasil",
+      "kickoff_argentina_actual": "2026-06-24T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-24T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "c-6",
+      "teams": "Marruecos vs Haití",
+      "kickoff_argentina_actual": "2026-06-24T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-24T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "d-1",
+      "teams": "Estados Unidos vs Paraguay",
+      "kickoff_argentina_actual": "2026-06-12T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-13T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "d-2",
+      "teams": "Australia vs Turquía",
+      "kickoff_argentina_actual": "2026-06-14T01:00:00-03:00",
+      "hora_argentina_actual": "01:00",
+      "kickoff_utc_correcto": "2026-06-14T04:00:00Z",
+      "hora_argentina_correcta": "01:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "d-3",
+      "teams": "Estados Unidos vs Australia",
+      "kickoff_argentina_actual": "2026-06-19T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-19T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "d-4",
+      "teams": "Turquía vs Paraguay",
+      "kickoff_argentina_actual": "2026-06-19T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-20T03:00:00Z",
+      "hora_argentina_correcta": "00:00",
+      "diferencia_horas": -2,
+      "cambiado": true
+    },
+    {
+      "id": "d-5",
+      "teams": "Turquía vs Estados Unidos",
+      "kickoff_argentina_actual": "2026-06-25T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-26T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "d-6",
+      "teams": "Paraguay vs Australia",
+      "kickoff_argentina_actual": "2026-06-25T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-26T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-1",
+      "teams": "Alemania vs Curazao",
+      "kickoff_argentina_actual": "2026-06-14T14:00:00-03:00",
+      "hora_argentina_actual": "14:00",
+      "kickoff_utc_correcto": "2026-06-14T17:00:00Z",
+      "hora_argentina_correcta": "14:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-2",
+      "teams": "Costa de Marfil vs Ecuador",
+      "kickoff_argentina_actual": "2026-06-14T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-14T23:00:00Z",
+      "hora_argentina_correcta": "20:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-3",
+      "teams": "Alemania vs Costa de Marfil",
+      "kickoff_argentina_actual": "2026-06-20T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-20T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-4",
+      "teams": "Ecuador vs Curazao",
+      "kickoff_argentina_actual": "2026-06-20T21:00:00-03:00",
+      "hora_argentina_actual": "21:00",
+      "kickoff_utc_correcto": "2026-06-21T00:00:00Z",
+      "hora_argentina_correcta": "21:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-5",
+      "teams": "Ecuador vs Alemania",
+      "kickoff_argentina_actual": "2026-06-25T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-25T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "e-6",
+      "teams": "Curazao vs Costa de Marfil",
+      "kickoff_argentina_actual": "2026-06-25T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-25T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "f-1",
+      "teams": "Países Bajos vs Japón",
+      "kickoff_argentina_actual": "2026-06-14T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-14T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "f-2",
+      "teams": "Suecia vs Túnez",
+      "kickoff_argentina_actual": "2026-06-14T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-15T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": -1,
+      "cambiado": true
+    },
+    {
+      "id": "f-3",
+      "teams": "Países Bajos vs Suecia",
+      "kickoff_argentina_actual": "2026-06-20T14:00:00-03:00",
+      "hora_argentina_actual": "14:00",
+      "kickoff_utc_correcto": "2026-06-20T17:00:00Z",
+      "hora_argentina_correcta": "14:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "f-4",
+      "teams": "Túnez vs Japón",
+      "kickoff_argentina_actual": "2026-06-22T01:00:00-03:00",
+      "hora_argentina_actual": "01:00",
+      "kickoff_utc_correcto": "2026-06-21T04:00:00Z",
+      "hora_argentina_correcta": "01:00",
+      "diferencia_horas": 24,
+      "cambiado": true
+    },
+    {
+      "id": "f-5",
+      "teams": "Japón vs Suecia",
+      "kickoff_argentina_actual": "2026-06-25T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-25T23:00:00Z",
+      "hora_argentina_correcta": "20:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "f-6",
+      "teams": "Túnez vs Países Bajos",
+      "kickoff_argentina_actual": "2026-06-25T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-25T23:00:00Z",
+      "hora_argentina_correcta": "20:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-1",
+      "teams": "Irán vs Nueva Zelanda",
+      "kickoff_argentina_actual": "2026-06-15T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-16T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-2",
+      "teams": "Bélgica vs Egipto",
+      "kickoff_argentina_actual": "2026-06-15T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-15T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-3",
+      "teams": "Bélgica vs Irán",
+      "kickoff_argentina_actual": "2026-06-21T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-21T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-4",
+      "teams": "Nueva Zelanda vs Egipto",
+      "kickoff_argentina_actual": "2026-06-21T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-22T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-5",
+      "teams": "Egipto vs Irán",
+      "kickoff_argentina_actual": "2026-06-27T00:00:00-03:00",
+      "hora_argentina_actual": "00:00",
+      "kickoff_utc_correcto": "2026-06-27T03:00:00Z",
+      "hora_argentina_correcta": "00:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "g-6",
+      "teams": "Nueva Zelanda vs Bélgica",
+      "kickoff_argentina_actual": "2026-06-27T00:00:00-03:00",
+      "hora_argentina_actual": "00:00",
+      "kickoff_utc_correcto": "2026-06-27T03:00:00Z",
+      "hora_argentina_correcta": "00:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-1",
+      "teams": "España vs Cabo Verde",
+      "kickoff_argentina_actual": "2026-06-15T13:00:00-03:00",
+      "hora_argentina_actual": "13:00",
+      "kickoff_utc_correcto": "2026-06-15T16:00:00Z",
+      "hora_argentina_correcta": "13:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-2",
+      "teams": "Arabia Saudita vs Uruguay",
+      "kickoff_argentina_actual": "2026-06-15T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-15T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-3",
+      "teams": "España vs Arabia Saudita",
+      "kickoff_argentina_actual": "2026-06-21T13:00:00-03:00",
+      "hora_argentina_actual": "13:00",
+      "kickoff_utc_correcto": "2026-06-21T16:00:00Z",
+      "hora_argentina_correcta": "13:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-4",
+      "teams": "Uruguay vs Cabo Verde",
+      "kickoff_argentina_actual": "2026-06-21T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-21T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-5",
+      "teams": "Cabo Verde vs Arabia Saudita",
+      "kickoff_argentina_actual": "2026-06-26T21:00:00-03:00",
+      "hora_argentina_actual": "21:00",
+      "kickoff_utc_correcto": "2026-06-27T00:00:00Z",
+      "hora_argentina_correcta": "21:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "h-6",
+      "teams": "Uruguay vs España",
+      "kickoff_argentina_actual": "2026-06-26T21:00:00-03:00",
+      "hora_argentina_actual": "21:00",
+      "kickoff_utc_correcto": "2026-06-27T00:00:00Z",
+      "hora_argentina_correcta": "21:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-1",
+      "teams": "Francia vs Senegal",
+      "kickoff_argentina_actual": "2026-06-16T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-16T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-2",
+      "teams": "Irak vs Noruega",
+      "kickoff_argentina_actual": "2026-06-16T19:00:00-03:00",
+      "hora_argentina_actual": "19:00",
+      "kickoff_utc_correcto": "2026-06-16T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-3",
+      "teams": "Francia vs Irak",
+      "kickoff_argentina_actual": "2026-06-22T18:00:00-03:00",
+      "hora_argentina_actual": "18:00",
+      "kickoff_utc_correcto": "2026-06-22T21:00:00Z",
+      "hora_argentina_correcta": "18:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-4",
+      "teams": "Noruega vs Senegal",
+      "kickoff_argentina_actual": "2026-06-22T21:00:00-03:00",
+      "hora_argentina_actual": "21:00",
+      "kickoff_utc_correcto": "2026-06-23T00:00:00Z",
+      "hora_argentina_correcta": "21:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-5",
+      "teams": "Noruega vs Francia",
+      "kickoff_argentina_actual": "2026-06-26T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-26T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "i-6",
+      "teams": "Senegal vs Irak",
+      "kickoff_argentina_actual": "2026-06-26T16:00:00-03:00",
+      "hora_argentina_actual": "16:00",
+      "kickoff_utc_correcto": "2026-06-26T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "j-1",
+      "teams": "Argentina vs Argelia",
+      "kickoff_argentina_actual": "2026-06-16T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-17T01:00:00Z",
+      "hora_argentina_correcta": "22:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "j-2",
+      "teams": "Austria vs Jordania",
+      "kickoff_argentina_actual": "2026-06-18T01:00:00-03:00",
+      "hora_argentina_actual": "01:00",
+      "kickoff_utc_correcto": "2026-06-17T04:00:00Z",
+      "hora_argentina_correcta": "01:00",
+      "diferencia_horas": 24,
+      "cambiado": true
+    },
+    {
+      "id": "j-3",
+      "teams": "Argentina vs Austria",
+      "kickoff_argentina_actual": "2026-06-22T14:00:00-03:00",
+      "hora_argentina_actual": "14:00",
+      "kickoff_utc_correcto": "2026-06-22T17:00:00Z",
+      "hora_argentina_correcta": "14:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "j-4",
+      "teams": "Jordania vs Argelia",
+      "kickoff_argentina_actual": "2026-06-23T00:00:00-03:00",
+      "hora_argentina_actual": "00:00",
+      "kickoff_utc_correcto": "2026-06-23T03:00:00Z",
+      "hora_argentina_correcta": "00:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "j-5",
+      "teams": "Argelia vs Austria",
+      "kickoff_argentina_actual": "2026-06-27T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-28T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "j-6",
+      "teams": "Jordania vs Argentina",
+      "kickoff_argentina_actual": "2026-06-27T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-28T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "k-1",
+      "teams": "Portugal vs RD Congo",
+      "kickoff_argentina_actual": "2026-06-17T14:00:00-03:00",
+      "hora_argentina_actual": "14:00",
+      "kickoff_utc_correcto": "2026-06-17T17:00:00Z",
+      "hora_argentina_correcta": "14:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "k-2",
+      "teams": "Uzbekistán vs Colombia",
+      "kickoff_argentina_actual": "2026-06-17T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-18T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "k-3",
+      "teams": "Portugal vs Uzbekistán",
+      "kickoff_argentina_actual": "2026-06-23T14:00:00-03:00",
+      "hora_argentina_actual": "14:00",
+      "kickoff_utc_correcto": "2026-06-23T17:00:00Z",
+      "hora_argentina_correcta": "14:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "k-4",
+      "teams": "Colombia vs RD Congo",
+      "kickoff_argentina_actual": "2026-06-23T23:00:00-03:00",
+      "hora_argentina_actual": "23:00",
+      "kickoff_utc_correcto": "2026-06-24T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "k-5",
+      "teams": "Colombia vs Portugal",
+      "kickoff_argentina_actual": "2026-06-27T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-27T23:30:00Z",
+      "hora_argentina_correcta": "20:30",
+      "diferencia_horas": -0.5,
+      "cambiado": true
+    },
+    {
+      "id": "k-6",
+      "teams": "RD Congo vs Uzbekistán",
+      "kickoff_argentina_actual": "2026-06-27T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-27T23:30:00Z",
+      "hora_argentina_correcta": "20:30",
+      "diferencia_horas": -0.5,
+      "cambiado": true
+    },
+    {
+      "id": "l-1",
+      "teams": "Inglaterra vs Croacia",
+      "kickoff_argentina_actual": "2026-06-17T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-17T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "l-2",
+      "teams": "Ghana vs Panamá",
+      "kickoff_argentina_actual": "2026-06-17T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-17T23:00:00Z",
+      "hora_argentina_correcta": "20:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "l-3",
+      "teams": "Inglaterra vs Ghana",
+      "kickoff_argentina_actual": "2026-06-23T17:00:00-03:00",
+      "hora_argentina_actual": "17:00",
+      "kickoff_utc_correcto": "2026-06-23T20:00:00Z",
+      "hora_argentina_correcta": "17:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "l-4",
+      "teams": "Panamá vs Croacia",
+      "kickoff_argentina_actual": "2026-06-23T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-23T23:00:00Z",
+      "hora_argentina_correcta": "20:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "l-5",
+      "teams": "Panamá vs Inglaterra",
+      "kickoff_argentina_actual": "2026-06-27T18:00:00-03:00",
+      "hora_argentina_actual": "18:00",
+      "kickoff_utc_correcto": "2026-06-27T21:00:00Z",
+      "hora_argentina_correcta": "18:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    },
+    {
+      "id": "l-6",
+      "teams": "Croacia vs Ghana",
+      "kickoff_argentina_actual": "2026-06-27T18:00:00-03:00",
+      "hora_argentina_actual": "18:00",
+      "kickoff_utc_correcto": "2026-06-27T21:00:00Z",
+      "hora_argentina_correcta": "18:00",
+      "diferencia_horas": 0,
+      "cambiado": false
+    }
+  ],
+  "changed": [
+    {
+      "id": "a-2",
+      "teams": "Corea del Sur vs Chequia",
+      "kickoff_argentina_actual": "2026-06-11T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-12T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": -1,
+      "cambiado": true
+    },
+    {
+      "id": "b-4",
+      "teams": "Canadá vs Qatar",
+      "kickoff_argentina_actual": "2026-06-18T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-18T22:00:00Z",
+      "hora_argentina_correcta": "19:00",
+      "diferencia_horas": 3,
+      "cambiado": true
+    },
+    {
+      "id": "b-5",
+      "teams": "Suiza vs Canadá",
+      "kickoff_argentina_actual": "2026-06-24T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-24T19:00:00Z",
+      "hora_argentina_correcta": "16:00",
+      "diferencia_horas": 6,
+      "cambiado": true
+    },
+    {
+      "id": "c-4",
+      "teams": "Brasil vs Haití",
+      "kickoff_argentina_actual": "2026-06-19T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-20T00:30:00Z",
+      "hora_argentina_correcta": "21:30",
+      "diferencia_horas": 0.5,
+      "cambiado": true
+    },
+    {
+      "id": "d-4",
+      "teams": "Turquía vs Paraguay",
+      "kickoff_argentina_actual": "2026-06-19T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-20T03:00:00Z",
+      "hora_argentina_correcta": "00:00",
+      "diferencia_horas": -2,
+      "cambiado": true
+    },
+    {
+      "id": "f-2",
+      "teams": "Suecia vs Túnez",
+      "kickoff_argentina_actual": "2026-06-14T22:00:00-03:00",
+      "hora_argentina_actual": "22:00",
+      "kickoff_utc_correcto": "2026-06-15T02:00:00Z",
+      "hora_argentina_correcta": "23:00",
+      "diferencia_horas": -1,
+      "cambiado": true
+    },
+    {
+      "id": "f-4",
+      "teams": "Túnez vs Japón",
+      "kickoff_argentina_actual": "2026-06-22T01:00:00-03:00",
+      "hora_argentina_actual": "01:00",
+      "kickoff_utc_correcto": "2026-06-21T04:00:00Z",
+      "hora_argentina_correcta": "01:00",
+      "diferencia_horas": 24,
+      "cambiado": true
+    },
+    {
+      "id": "j-2",
+      "teams": "Austria vs Jordania",
+      "kickoff_argentina_actual": "2026-06-18T01:00:00-03:00",
+      "hora_argentina_actual": "01:00",
+      "kickoff_utc_correcto": "2026-06-17T04:00:00Z",
+      "hora_argentina_correcta": "01:00",
+      "diferencia_horas": 24,
+      "cambiado": true
+    },
+    {
+      "id": "k-5",
+      "teams": "Colombia vs Portugal",
+      "kickoff_argentina_actual": "2026-06-27T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-27T23:30:00Z",
+      "hora_argentina_correcta": "20:30",
+      "diferencia_horas": -0.5,
+      "cambiado": true
+    },
+    {
+      "id": "k-6",
+      "teams": "RD Congo vs Uzbekistán",
+      "kickoff_argentina_actual": "2026-06-27T20:00:00-03:00",
+      "hora_argentina_actual": "20:00",
+      "kickoff_utc_correcto": "2026-06-27T23:30:00Z",
+      "hora_argentina_correcta": "20:30",
+      "diferencia_horas": -0.5,
+      "cambiado": true
+    }
+  ]
+}

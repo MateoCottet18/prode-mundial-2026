@@ -132,7 +132,7 @@ export function MatchCard({
         <span aria-hidden className="h-1 w-1 rounded-full bg-[var(--fc-lime)]/60" />
         <span className="fc-display-italic uppercase tracking-[0.16em]">
           {(kickoffDateLabel ?? match.date).toUpperCase()}
-          {closeLabel ? ` · ${closeLabel} ARG` : ""}
+          {closeLabel ? ` · ${closeLabel} ARG` : " · Horario no confirmado"}
         </span>
         <span className="text-slate-500">·</span>
         <span className="truncate">{match.city}</span>
