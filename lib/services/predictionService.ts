@@ -1,4 +1,5 @@
 import { calculatePoints, getResult, parseScore, type PredictionsByUser, type ResultsByMatch, type SavedPredictionsByUser, type ScoreInput } from "@/lib/prode";
+import { fetchAllFromTable } from "@/lib/supabase/paginate";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { toScoreInput } from "@/lib/supabase/types";
 
@@ -422,30 +423,29 @@ export async function recalculatePredictionPoints(resultsOverride?: ResultsByMat
 
   let results = resultsOverride;
   if (!results) {
-    const { data: resultRows, error: resultError } = await supabase
-      .from("results")
-      .select("match_id,home_goals,away_goals");
-    if (resultError) {
-      throw new Error(resultError.message);
-    }
+    const resultRows = await fetchAllFromTable<{
+      match_id: string;
+      home_goals: number;
+      away_goals: number;
+    }>(supabase, "results", "match_id,home_goals,away_goals");
     results = Object.fromEntries(
-      (resultRows ?? []).map((row) => [
+      resultRows.map((row) => [
         row.match_id,
         toScoreInput(row.home_goals, row.away_goals),
       ]),
     ) as ResultsByMatch;
   }
 
-  const { data, error } = await supabase
-    .from("predictions")
-    .select("id,match_id,home_goals,away_goals,points");
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const data = await fetchAllFromTable<{
+    id: string;
+    match_id: string;
+    home_goals: number;
+    away_goals: number;
+    points: number;
+  }>(supabase, "predictions", "id,match_id,home_goals,away_goals,points");
 
   const idsByPoints = new Map<number, string[]>();
-  for (const row of data ?? []) {
+  for (const row of data) {
     if (!row.id) continue;
     const score = toScoreInput(row.home_goals, row.away_goals);
     const next = calculatePoints(score, results[row.match_id], true) ?? 0;

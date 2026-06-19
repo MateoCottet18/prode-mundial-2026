@@ -1,16 +1,32 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { scorePrediction } from "@/lib/scorePrediction";
+import { fetchAllFromTable } from "@/lib/supabase/paginate";
 import {
   getSupabaseAdminClient,
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase/server";
 
+type PredictionRow = {
+  id: string;
+  match_id: string;
+  home_goals: number;
+  away_goals: number;
+  points: number;
+};
+
+type ResultRow = {
+  match_id: string;
+  home_goals: number;
+  away_goals: number;
+};
+
 /**
  * POST /api/admin/recalculate-points
  * Authorization: Bearer <admin access_token>
  *
- * Recalcula predictions.points leyendo resultados desde la DB (fuente de verdad).
+ * Recalcula predictions.points leyendo TODOS los results y predictions desde DB.
+ * Usa paginación (Supabase limita a 1000 filas por query).
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization") ?? "";
@@ -51,27 +67,49 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Solo admin." }, { status: 403 });
   }
 
-  const [{ data: predictions, error: predError }, { data: results, error: resError }] =
-    await Promise.all([
-      admin.from("predictions").select("id,match_id,home_goals,away_goals,points"),
-      admin.from("results").select("match_id,home_goals,away_goals"),
-    ]);
-
-  if (predError) {
-    return NextResponse.json({ error: predError.message }, { status: 500 });
+  // Preferir función SQL si ya está desplegada (repair_points.sql).
+  const { data: rpcUpdated, error: rpcError } = await admin.rpc(
+    "recalculate_all_prediction_points",
+  );
+  if (!rpcError && typeof rpcUpdated === "number") {
+    console.log("[recalculate-points-api] rpc done", { updated: rpcUpdated });
+    return NextResponse.json({
+      ok: true,
+      method: "rpc",
+      examined: null,
+      updated: rpcUpdated,
+    });
   }
-  if (resError) {
-    return NextResponse.json({ error: resError.message }, { status: 500 });
+
+  if (rpcError && !rpcError.message.includes("Could not find the function")) {
+    console.warn("[recalculate-points-api] rpc failed, falling back to JS", rpcError.message);
+  }
+
+  let predictions: PredictionRow[];
+  let results: ResultRow[];
+  try {
+    [predictions, results] = await Promise.all([
+      fetchAllFromTable<PredictionRow>(
+        admin,
+        "predictions",
+        "id,match_id,home_goals,away_goals,points",
+      ),
+      fetchAllFromTable<ResultRow>(admin, "results", "match_id,home_goals,away_goals"),
+    ]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Error leyendo datos.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   const resultByMatch = new Map(
-    (results ?? []).map((row) => [row.match_id, { home: row.home_goals, away: row.away_goals }]),
+    results.map((row) => [row.match_id, { home: row.home_goals, away: row.away_goals }]),
   );
 
   const idsByPoints = new Map<number, string[]>();
   let examined = 0;
+  let mismatches = 0;
 
-  for (const row of predictions ?? []) {
+  for (const row of predictions) {
     if (!row.id) continue;
     examined += 1;
     const result = resultByMatch.get(row.match_id);
@@ -83,6 +121,7 @@ export async function POST(request: Request) {
       : null;
     const nextPoints = scored?.points ?? 0;
     if (nextPoints === row.points) continue;
+    mismatches += 1;
     const list = idsByPoints.get(nextPoints);
     if (list) list.push(row.id);
     else idsByPoints.set(nextPoints, [row.id]);
@@ -90,10 +129,14 @@ export async function POST(request: Request) {
 
   let updated = 0;
   const CHUNK = 500;
+  const now = new Date().toISOString();
   for (const [points, ids] of idsByPoints) {
     for (let i = 0; i < ids.length; i += CHUNK) {
       const chunk = ids.slice(i, i + CHUNK);
-      const { error } = await admin.from("predictions").update({ points }).in("id", chunk);
+      const { error } = await admin
+        .from("predictions")
+        .update({ points, points_updated_at: now })
+        .in("id", chunk);
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
@@ -101,7 +144,13 @@ export async function POST(request: Request) {
     }
   }
 
-  console.log("[recalculate-points-api] done", { examined, updated });
+  console.log("[recalculate-points-api] done", { examined, mismatches, updated });
 
-  return NextResponse.json({ ok: true, examined, updated });
+  return NextResponse.json({
+    ok: true,
+    method: "js",
+    examined,
+    mismatches,
+    updated,
+  });
 }
