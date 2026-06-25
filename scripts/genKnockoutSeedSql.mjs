@@ -8,26 +8,30 @@ import path from "node:path";
 const ARG_TZ = "America/Argentina/Buenos_Aires";
 
 const OFFICIAL_R32 = [
-  [["Grupo A", 1], ["Grupo B", 2]],
-  [["Grupo C", 1], ["third", 1]],
-  [["Grupo E", 1], ["Grupo F", 2]],
-  [["Grupo G", 1], ["third", 2]],
-  [["Grupo B", 1], ["Grupo A", 2]],
-  [["Grupo D", 1], ["third", 3]],
-  [["Grupo F", 1], ["Grupo E", 2]],
-  [["Grupo H", 1], ["third", 4]],
-  [["Grupo I", 1], ["Grupo J", 2]],
-  [["Grupo K", 1], ["third", 5]],
-  [["Grupo J", 1], ["Grupo I", 2]],
-  [["Grupo L", 1], ["third", 6]],
-  [["Grupo C", 2], ["third", 7]],
-  [["Grupo D", 2], ["Grupo G", 2]],
-  [["Grupo H", 2], ["third", 8]],
+  [["Grupo E", 1], ["third_pool", "E", "ABCDF"]],
+  [["Grupo I", 1], ["third_pool", "I", "CDFGH"]],
+  [["Grupo A", 2], ["Grupo B", 2]],
+  [["Grupo F", 1], ["Grupo C", 2]],
+  [["Grupo C", 1], ["Grupo F", 2]],
+  [["Grupo E", 2], ["Grupo I", 2]],
+  [["Grupo A", 1], ["third_pool", "A", "CEFHI"]],
+  [["Grupo L", 1], ["third_pool", "L", "EHIJK"]],
   [["Grupo K", 2], ["Grupo L", 2]],
+  [["Grupo H", 1], ["Grupo J", 2]],
+  [["Grupo D", 1], ["third_pool", "D", "BEFIJ"]],
+  [["Grupo G", 1], ["third_pool", "G", "AEHIJ"]],
+  [["Grupo J", 1], ["Grupo H", 2]],
+  [["Grupo D", 2], ["Grupo G", 2]],
+  [["Grupo B", 1], ["third_pool", "B", "EFGIJ"]],
+  [["Grupo K", 1], ["third_pool", "K", "DEIJL"]],
 ];
 
 function slotLabel(slot) {
   if (slot[0] === "third") return `BEST_THIRD_${slot[1]}`;
+  if (slot[0] === "third_pool") {
+    const letters = slot[2].split("").join("/");
+    return `3° ${letters}`;
+  }
   const letter = slot[0].replace("Grupo ", "");
   return `${slot[1]}${letter}`;
 }

@@ -7,8 +7,15 @@ import type { ResultsByMatch } from "@/lib/prode";
 import {
   baseQualifierSlots,
   getGroupStandings,
+  getQualifyingThirdGroupLetters,
   getThirdPlacedTeams,
 } from "@/lib/standings";
+import {
+  ANNEX_C_WINNERS,
+  formatThirdPoolPlaceholder,
+  getThirdPlaceOpponentLetter,
+  type AnnexCWinnerLetter,
+} from "@/data/thirdPlaceAnnexC";
 import type { QualificationOverride } from "@/lib/services/qualificationOverrideService";
 import type { SaveOverrideInput } from "@/lib/services/qualificationOverrideService";
 
@@ -293,6 +300,39 @@ function computeAutoTeam(
   standings: ReturnType<typeof getGroupStandings>,
   thirdPlaced: ReturnType<typeof getThirdPlacedTeams>,
 ): string {
+  const thirdVsMatch = slotId.match(/^THIRD_VS_1([A-L])$/);
+  if (thirdVsMatch) {
+    const winnerLetter = thirdVsMatch[1] as AnnexCWinnerLetter;
+    if (!ANNEX_C_WINNERS.includes(winnerLetter)) {
+      return "—";
+    }
+    const qualifyingLetters = getQualifyingThirdGroupLetters(standings);
+    if (!qualifyingLetters) {
+      const poolByWinner: Record<AnnexCWinnerLetter, string> = {
+        A: "CEFHI",
+        B: "EFGIJ",
+        D: "BEFIJ",
+        E: "ABCDF",
+        G: "AEHIJ",
+        I: "CDFGH",
+        K: "DEIJL",
+        L: "EHIJK",
+      };
+      const letters = poolByWinner[winnerLetter] ?? "";
+      return formatThirdPoolPlaceholder(
+        letters.split("").map((l) => `Grupo ${l}` as keyof typeof standings),
+      );
+    }
+    const opponentLetter = getThirdPlaceOpponentLetter(winnerLetter, qualifyingLetters);
+    if (!opponentLetter) return "—";
+    const groupName = `Grupo ${opponentLetter}` as keyof typeof standings;
+    const groupStandings = standings[groupName];
+    if (!groupStandings || groupStandings.some((team) => team.played < 3)) {
+      return `3° Grupo ${opponentLetter}`;
+    }
+    return groupStandings[2]?.team ?? `3° Grupo ${opponentLetter}`;
+  }
+
   const bestThirdMatch = slotId.match(/^BEST_THIRD_(\d+)$/);
   if (bestThirdMatch) {
     const index = Number(bestThirdMatch[1]) - 1;

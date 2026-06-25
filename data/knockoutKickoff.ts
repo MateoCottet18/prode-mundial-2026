@@ -4,6 +4,7 @@
  */
 import { formatKickoffArgentinaDisplay } from "@/data/kickoffUtc";
 import { officialRoundOf32Slots, type QualifierSlot } from "@/data/knockout";
+import { formatThirdPoolPlaceholder } from "@/data/thirdPlaceAnnexC";
 import type { Stage } from "@/data/matches";
 
 export type KnockoutRoundCode = "R32" | "R16" | "QF" | "SF" | "3P" | "FINAL";
@@ -152,6 +153,9 @@ export const KNOCKOUT_ROUND_CODE: Record<string, KnockoutRoundCode> = {
 function slotPlaceholderLabel(slot: QualifierSlot): string {
   if (slot.type === "third") {
     return `BEST_THIRD_${slot.index}`;
+  }
+  if (slot.type === "third_pool") {
+    return formatThirdPoolPlaceholder(slot.eligibleGroups);
   }
   const letter = slot.group.replace("Grupo ", "");
   return `${slot.position}${letter}`;

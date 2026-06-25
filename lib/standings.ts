@@ -8,6 +8,12 @@ import {
 } from "@/data/matches";
 import { officialRoundOf32Slots, type QualifierSlot } from "@/data/knockout";
 import {
+  ANNEX_C_WINNERS,
+  formatThirdPoolPlaceholder,
+  getThirdPlaceOpponentLetter,
+  type AnnexCWinnerLetter,
+} from "@/data/thirdPlaceAnnexC";
+import {
   mergeKnockoutSchedule,
   resolveKnockoutSchedule,
   type KnockoutScheduleMap,
@@ -246,6 +252,10 @@ export function qualifierSlotId(slot: QualifierSlot): string {
   if (slot.type === "third") {
     return `BEST_THIRD_${slot.index}`;
   }
+  if (slot.type === "third_pool") {
+    const letter = slot.winnerGroup.replace("Grupo ", "");
+    return `THIRD_VS_1${letter}`;
+  }
   const letter = slot.group.replace("Grupo ", "");
   return `${slot.position}${letter}`;
 }
@@ -264,9 +274,13 @@ export const baseQualifierSlots: { id: string; label: string }[] = [
       { id: `2${letter}`, label: `2° ${group}` },
     ];
   }),
+  ...ANNEX_C_WINNERS.map((letter) => ({
+    id: `THIRD_VS_1${letter}`,
+    label: `3° vs 1° Grupo ${letter} (Anexo C)`,
+  })),
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `BEST_THIRD_${index + 1}`,
-    label: `${index + 1}° mejor tercero`,
+    label: `${index + 1}° mejor tercero (legacy)`,
   })),
 ];
 
@@ -291,6 +305,23 @@ function pickQualifierTeam(
   return { team: computeAuto(), source: "auto" };
 }
 
+export function getQualifyingThirdGroupLetters(
+  standings: Record<GroupName, TeamStanding[]>,
+): string[] | null {
+  const thirds = groupNames
+    .filter((group) => isGroupComplete(standings[group]))
+    .map((group) => ({ letter: group.replace("Grupo ", ""), standing: standings[group][2] }))
+    .filter((entry) => entry.standing)
+    .sort((a, b) => compareStandings(a.standing, b.standing))
+    .slice(0, 8);
+
+  if (thirds.length < 8) {
+    return null;
+  }
+
+  return thirds.map((entry) => entry.letter);
+}
+
 function resolveQualifierSlot(
   slot: QualifierSlot,
   standings: Record<GroupName, TeamStanding[]>,
@@ -298,6 +329,28 @@ function resolveQualifierSlot(
 ) {
   if (slot.type === "third") {
     return thirdPlacedTeams[slot.index - 1]?.team ?? `${slot.index}° mejor tercero`;
+  }
+
+  if (slot.type === "third_pool") {
+    const winnerLetter = slot.winnerGroup.replace("Grupo ", "") as AnnexCWinnerLetter;
+    const qualifyingLetters = getQualifyingThirdGroupLetters(standings);
+    if (!qualifyingLetters) {
+      return formatThirdPoolPlaceholder(slot.eligibleGroups);
+    }
+
+    const opponentLetter = getThirdPlaceOpponentLetter(winnerLetter, qualifyingLetters);
+    if (!opponentLetter) {
+      return formatThirdPoolPlaceholder(slot.eligibleGroups);
+    }
+
+    const opponentGroup = `Grupo ${opponentLetter}` as GroupName;
+    if (!isGroupComplete(standings[opponentGroup])) {
+      return formatThirdPoolPlaceholder(slot.eligibleGroups);
+    }
+
+    return (
+      standings[opponentGroup][2]?.team ?? formatThirdPoolPlaceholder(slot.eligibleGroups)
+    );
   }
 
   if (!isGroupComplete(standings[slot.group])) {
