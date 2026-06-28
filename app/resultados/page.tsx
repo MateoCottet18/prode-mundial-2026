@@ -116,19 +116,14 @@ export default function ResultadosPage() {
 
       {isEliminatoria ? (
         <section className="min-w-0">
-          <p className="mb-3 text-[0.7rem] text-slate-400 md:hidden">
-            Deslizá horizontalmente para ver la llave completa.
-          </p>
-          <div className="max-w-full overflow-x-auto overscroll-x-contain">
-            <KnockoutBracket
-              bracket={bracket}
-              results={results}
-              predictions={{}}
-              savedPredictions={{}}
-              mode="view"
-              canPredict={false}
-            />
-          </div>
+          <KnockoutBracket
+            bracket={bracket}
+            results={results}
+            predictions={{}}
+            savedPredictions={{}}
+            mode="view"
+            canPredict={false}
+          />
         </section>
       ) : (
         <div className="grid min-w-0 gap-8 xl:grid-cols-[0.95fr_1.05fr]">

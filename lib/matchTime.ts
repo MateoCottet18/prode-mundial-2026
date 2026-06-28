@@ -79,6 +79,19 @@ export function getKickoffDateLabelArgentina(match: Match): string | null {
   }).format(kickoff);
 }
 
+/** Fecha corta mobile: "28/6 · 16:00 ARG" */
+export function formatMobileKickoffArgentina(match: Match): string {
+  const kickoff = parseMatchKickoff(match);
+  if (!kickoff) return "Horario no confirmado";
+  const date = new Intl.DateTimeFormat("es-AR", {
+    timeZone: ARGENTINA_TZ,
+    day: "numeric",
+    month: "numeric",
+  }).format(kickoff);
+  const time = formatKickoffArgentina(kickoff);
+  return `${date} · ${time} ARG`;
+}
+
 export function hasMatchResult(matchId: string, results: ResultsByMatch): boolean {
   return parseScore(results[matchId]) !== null;
 }

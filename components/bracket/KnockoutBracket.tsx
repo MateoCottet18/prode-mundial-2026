@@ -1,11 +1,12 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Match } from "@/data/matches";
 import { BracketMatch } from "@/components/bracket/BracketMatch";
 import { BracketMatchModal } from "@/components/bracket/BracketMatchModal";
 import { BracketConnector } from "@/components/bracket/BracketConnector";
 import { BracketTrophy } from "@/components/bracket/BracketTrophy";
+import { MobileKnockoutRounds } from "@/components/bracket/MobileKnockoutRounds";
 import { useBracketModal } from "@/hooks/useBracketModal";
 import type { ResultsByMatch, ScoreInput } from "@/lib/prode";
 import type { BracketLayout, BracketMode } from "@/types/bracket";
@@ -14,18 +15,11 @@ import type { PredictionLock } from "@/lib/matchTime";
 type Props = {
   bracket: BracketLayout;
   results: ResultsByMatch;
-  /** Inputs locales del usuario (editable, "dirty" mientras escribe). */
   predictions: Record<string, ScoreInput>;
-  /** Valores confirmados en Supabase (lectura/locked). Opcional. */
   dbPredictions?: Record<string, ScoreInput>;
   savedPredictions: Record<string, boolean>;
   mode: BracketMode;
   canPredict?: boolean;
-  /**
-   * Función que decide si la predicción está abierta para un match dado.
-   * Si no se pasa, cada match queda abierto (compat con admin / vistas
-   * históricas sin gating temporal).
-   */
   getPredictionLock?: (match: Match) => PredictionLock;
   onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
@@ -33,16 +27,6 @@ type Props = {
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
 };
 
-/**
- * Bracket eliminatorio con layout espejado y trofeo central.
- *
- * Estructura horizontal (de izquierda a derecha):
- *   r32-L → conn → 8-L → conn → 4-L → conn → semi-L → centro(final + 3°) →
- *   semi-R → conn → 4-R → conn → 8-R → conn → r32-R
- *
- * Mobile: el contenedor exterior tiene `overflow-x-auto`; el interior mantiene
- * un `min-w` para que el bracket no se aplaste y se navega con scroll lateral.
- */
 export function KnockoutBracket({
   bracket,
   results,
@@ -57,6 +41,8 @@ export function KnockoutBracket({
   onPredictionChange,
   onSavePrediction,
 }: Props) {
+  const [showFullBracketMobile, setShowFullBracketMobile] = useState(false);
+
   const bracketModal = useBracketModal({
     mode,
     results,
@@ -92,31 +78,42 @@ export function KnockoutBracket({
     />
   );
 
+  const treeProps: BracketTreeInnerProps = {
+    bracket,
+    results,
+    predictions,
+    dbPredictions,
+    savedPredictions,
+    mode,
+    canPredict,
+    getPredictionLock,
+    onSaveResult,
+    onDeleteResult,
+    onMatchOpen: (match) => bracketModal.open(match),
+    onPredictionChange,
+    onSavePrediction,
+    renderMatch,
+  };
+
   return (
     <>
-      <div className="overflow-x-auto pb-6">
-        <div className="flex min-w-[1700px] items-stretch gap-1 px-2 lg:min-w-[1800px]">
-          {/* LEFT */}
-          <RoundColumn label="16avos">
-            {bracket.left.r32.map((match) => renderMatch(match))}
-          </RoundColumn>
-          <BracketConnector pairs={4} side="left" />
-          <RoundColumn label="Octavos">
-            {bracket.left.octavos.map((match) => renderMatch(match))}
-          </RoundColumn>
-          <BracketConnector pairs={2} side="left" />
-          <RoundColumn label="Cuartos">
-            {bracket.left.cuartos.map((match) => renderMatch(match))}
-          </RoundColumn>
-          <BracketConnector pairs={1} side="left" />
-          <RoundColumn label="Semifinal">
-            {renderMatch(bracket.left.semifinal)}
-          </RoundColumn>
-
-          {/* CENTER */}
-          <BracketTrophy
-            finalMatch={bracket.final}
-            thirdPlaceMatch={bracket.tercerPuesto}
+      <div className="lg:hidden">
+        {showFullBracketMobile ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowFullBracketMobile(false)}
+              className="fc-display rounded-full border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-[0.62rem] uppercase tracking-[0.14em] text-slate-200 transition-colors hover:border-[var(--fc-lime)]/35 hover:bg-[var(--fc-lime)]/[0.08] hover:text-white"
+            >
+              ← Volver a rondas
+            </button>
+            <HorizontalBracketScroll>
+              <BracketTreeContent {...treeProps} />
+            </HorizontalBracketScroll>
+          </div>
+        ) : (
+          <MobileKnockoutRounds
+            bracket={bracket}
             results={results}
             predictions={predictions}
             dbPredictions={dbPredictions}
@@ -124,30 +121,14 @@ export function KnockoutBracket({
             mode={mode}
             canPredict={canPredict}
             getPredictionLock={getPredictionLock}
-            onSaveResult={onSaveResult}
-            onDeleteResult={onDeleteResult}
             onMatchOpen={(match) => bracketModal.open(match)}
-            onPredictionChange={onPredictionChange}
-            onSavePrediction={onSavePrediction}
+            onShowFullBracket={() => setShowFullBracketMobile(true)}
           />
+        )}
+      </div>
 
-          {/* RIGHT (mirror) */}
-          <RoundColumn label="Semifinal">
-            {renderMatch(bracket.right.semifinal)}
-          </RoundColumn>
-          <BracketConnector pairs={1} side="right" />
-          <RoundColumn label="Cuartos">
-            {bracket.right.cuartos.map((match) => renderMatch(match))}
-          </RoundColumn>
-          <BracketConnector pairs={2} side="right" />
-          <RoundColumn label="Octavos">
-            {bracket.right.octavos.map((match) => renderMatch(match))}
-          </RoundColumn>
-          <BracketConnector pairs={4} side="right" />
-          <RoundColumn label="16avos">
-            {bracket.right.r32.map((match) => renderMatch(match))}
-          </RoundColumn>
-        </div>
+      <div className="hidden overflow-x-auto pb-6 lg:block">
+        <BracketTreeContent {...treeProps} />
       </div>
 
       <BracketMatchModal
@@ -181,6 +162,111 @@ export function KnockoutBracket({
   );
 }
 
+type BracketTreeInnerProps = {
+  bracket: BracketLayout;
+  results: ResultsByMatch;
+  predictions: Record<string, ScoreInput>;
+  dbPredictions?: Record<string, ScoreInput>;
+  savedPredictions: Record<string, boolean>;
+  mode: BracketMode;
+  canPredict: boolean;
+  getPredictionLock?: (match: Match) => PredictionLock;
+  onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
+  onDeleteResult?: (matchId: string) => Promise<void> | void;
+  onMatchOpen: (match: Match) => void;
+  onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
+  onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
+  renderMatch: (match: Match, highlight?: boolean) => ReactNode;
+};
+
+function BracketTreeContent({
+  bracket,
+  results,
+  predictions,
+  dbPredictions,
+  savedPredictions,
+  mode,
+  canPredict,
+  getPredictionLock,
+  onSaveResult,
+  onDeleteResult,
+  onMatchOpen,
+  onPredictionChange,
+  onSavePrediction,
+  renderMatch,
+}: BracketTreeInnerProps) {
+  return (
+    <div className="flex min-w-[1700px] items-stretch gap-1 px-2 lg:min-w-[1800px]">
+      <RoundColumn label="16avos">
+        {bracket.left.r32.map((match) => renderMatch(match))}
+      </RoundColumn>
+      <BracketConnector pairs={4} side="left" />
+      <RoundColumn label="Octavos">
+        {bracket.left.octavos.map((match) => renderMatch(match))}
+      </RoundColumn>
+      <BracketConnector pairs={2} side="left" />
+      <RoundColumn label="Cuartos">
+        {bracket.left.cuartos.map((match) => renderMatch(match))}
+      </RoundColumn>
+      <BracketConnector pairs={1} side="left" />
+      <RoundColumn label="Semifinal">
+        {renderMatch(bracket.left.semifinal)}
+      </RoundColumn>
+
+      <BracketTrophy
+        finalMatch={bracket.final}
+        thirdPlaceMatch={bracket.tercerPuesto}
+        results={results}
+        predictions={predictions}
+        dbPredictions={dbPredictions}
+        savedPredictions={savedPredictions}
+        mode={mode}
+        canPredict={canPredict}
+        getPredictionLock={getPredictionLock}
+        onSaveResult={onSaveResult}
+        onDeleteResult={onDeleteResult}
+        onMatchOpen={onMatchOpen}
+        onPredictionChange={onPredictionChange}
+        onSavePrediction={onSavePrediction}
+      />
+
+      <RoundColumn label="Semifinal">
+        {renderMatch(bracket.right.semifinal)}
+      </RoundColumn>
+      <BracketConnector pairs={1} side="right" />
+      <RoundColumn label="Cuartos">
+        {bracket.right.cuartos.map((match) => renderMatch(match))}
+      </RoundColumn>
+      <BracketConnector pairs={2} side="right" />
+      <RoundColumn label="Octavos">
+        {bracket.right.octavos.map((match) => renderMatch(match))}
+      </RoundColumn>
+      <BracketConnector pairs={4} side="right" />
+      <RoundColumn label="16avos">
+        {bracket.right.r32.map((match) => renderMatch(match))}
+      </RoundColumn>
+    </div>
+  );
+}
+
+function HorizontalBracketScroll({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      <p className="fc-display mb-2 flex items-center gap-2 text-[0.62rem] uppercase tracking-[0.14em] text-slate-400">
+        <span className="inline-block animate-pulse text-[var(--fc-lime)]">→</span>
+        Deslizá para ver las próximas rondas
+      </p>
+      <div className="overflow-x-auto pb-6">
+        {children}
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-6 right-0 w-14 bg-gradient-to-l from-[#070b13] via-[#070b13]/80 to-transparent"
+      />
+    </div>
+  );
+}
+
 function RoundColumn({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-h-[920px] flex-col">
@@ -204,4 +290,3 @@ function RoundColumn({ label, children }: { label: string; children: ReactNode }
     </div>
   );
 }
-
