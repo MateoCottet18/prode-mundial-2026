@@ -62,29 +62,11 @@ function formatArg(utc: string | undefined): string {
   return `${date} ${time}`;
 }
 
-/** FIFA R16 feed pairs — winner of left 16avos id vs winner of right 16avos id */
-const OFFICIAL_OCTAVOS_FEEDS: [string, string][] = [
-  ["16avos-1", "16avos-2"], // M89
-  ["16avos-3", "16avos-4"], // M90
-  ["16avos-5", "16avos-6"], // M91
-  ["16avos-7", "16avos-8"], // M92
-  ["16avos-9", "16avos-10"], // M93
-  ["16avos-11", "16avos-12"], // M94
-  ["16avos-13", "16avos-14"], // M95
-  ["16avos-15", "16avos-16"], // M96
-];
-
-const OFFICIAL_CUARTOS_FEEDS: [string, string][] = [
-  ["octavos-1", "octavos-2"], // M97
-  ["octavos-3", "octavos-4"], // M98
-  ["octavos-5", "octavos-6"], // M99
-  ["octavos-7", "octavos-8"], // M100
-];
-
-const OFFICIAL_SEMI_FEEDS: [string, string][] = [
-  ["cuartos-1", "cuartos-2"], // M101
-  ["cuartos-3", "cuartos-4"], // M102
-];
+import {
+  FIFA_CUARTOS_FEEDS,
+  FIFA_OCTAVOS_FEEDS,
+  FIFA_SEMIFINAL_FEEDS,
+} from "../data/knockoutBracketTree";
 
 loadEnvFile();
 
@@ -216,9 +198,9 @@ function checkFeeds(
 }
 
 let treeOk = true;
-treeOk = checkFeeds("octavos", OFFICIAL_OCTAVOS_FEEDS, ko.octavos) && treeOk;
-treeOk = checkFeeds("cuartos", OFFICIAL_CUARTOS_FEEDS, ko.cuartos) && treeOk;
-treeOk = checkFeeds("semifinal", OFFICIAL_SEMI_FEEDS, ko.semifinal) && treeOk;
+treeOk = checkFeeds("octavos", [...FIFA_OCTAVOS_FEEDS], ko.octavos) && treeOk;
+treeOk = checkFeeds("cuartos", [...FIFA_CUARTOS_FEEDS], ko.cuartos) && treeOk;
+treeOk = checkFeeds("semifinal", [...FIFA_SEMIFINAL_FEEDS], ko.semifinal) && treeOk;
 
 const final = ko.final[0];
 const finalHomeOk = final.homeTeam === "Ganador semifinal-1";

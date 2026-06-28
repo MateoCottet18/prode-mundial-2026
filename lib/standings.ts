@@ -8,6 +8,12 @@ import {
 } from "@/data/matches";
 import { officialRoundOf32Slots, type QualifierSlot } from "@/data/knockout";
 import {
+  FIFA_CUARTOS_FEEDS,
+  FIFA_FINAL_FEEDS,
+  FIFA_OCTAVOS_FEEDS,
+  FIFA_SEMIFINAL_FEEDS,
+} from "@/data/knockoutBracketTree";
+import {
   ANNEX_C_WINNERS,
   formatThirdPoolPlaceholder,
   getThirdPlaceOpponentLetter,
@@ -175,10 +181,38 @@ export function getKnockoutMatches(
     );
   });
 
-  const octavos = buildNextRound("octavos", roundOf32, results, overrides, schedule);
-  const cuartos = buildNextRound("cuartos", octavos, results, overrides, schedule);
-  const semifinal = buildNextRound("semifinal", cuartos, results, overrides, schedule);
-  const final = buildNextRound("final", semifinal, results, overrides, schedule);
+  const octavos = buildRoundFromFeeds(
+    "octavos",
+    FIFA_OCTAVOS_FEEDS,
+    roundOf32,
+    results,
+    overrides,
+    schedule,
+  );
+  const cuartos = buildRoundFromFeeds(
+    "cuartos",
+    FIFA_CUARTOS_FEEDS,
+    octavos,
+    results,
+    overrides,
+    schedule,
+  );
+  const semifinal = buildRoundFromFeeds(
+    "semifinal",
+    FIFA_SEMIFINAL_FEEDS,
+    cuartos,
+    results,
+    overrides,
+    schedule,
+  );
+  const final = buildRoundFromFeeds(
+    "final",
+    FIFA_FINAL_FEEDS,
+    semifinal,
+    results,
+    overrides,
+    schedule,
+  );
   const tercerPuesto = mergeKnockoutSchedule(
     buildThirdPlaceMatch(semifinal, results, overrides),
     schedule,
@@ -425,17 +459,26 @@ function buildThirdPlaceMatch(
   };
 }
 
-function buildNextRound(
+function buildRoundFromFeeds(
   stage: Exclude<Stage, "grupos">,
+  feeds: readonly [string, string][],
   previousRound: Match[],
   results: ResultsByMatch,
   overrides: QualificationOverrides,
   schedule: KnockoutScheduleMap,
 ) {
-  return Array.from({ length: previousRound.length / 2 }, (_, index) => {
+  const byId = new Map(previousRound.map((match) => [match.id, match]));
+
+  return feeds.map(([homeFeedId, awayFeedId], index) => {
     const matchIndex = index + 1;
-    const homeSource = previousRound[index * 2];
-    const awaySource = previousRound[index * 2 + 1];
+    const homeSource = byId.get(homeFeedId);
+    const awaySource = byId.get(awayFeedId);
+
+    if (!homeSource || !awaySource) {
+      throw new Error(
+        `[knockout] feed inválido ${stage}-${matchIndex}: ${homeFeedId} o ${awayFeedId} no existe`,
+      );
+    }
 
     const home = pickQualifierTeam(
       `${stage}-${matchIndex}-home`,

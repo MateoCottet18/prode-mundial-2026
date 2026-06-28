@@ -15,9 +15,8 @@ export type BracketMode = "view" | "admin";
 /**
  * Estructura armada del bracket completo.
  *
- * Convención: el bracket se dibuja espejado. La mitad izquierda contiene los
- * primeros 8 partidos de 16avos, los primeros 4 de octavos, los 2 primeros de
- * cuartos y la primera semifinal. La mitad derecha contiene el resto.
+ * Convención FIFA 2026: mitad izquierda alimenta semifinal-1 (M101),
+ * mitad derecha alimenta semifinal-2 (M102). Ver `data/knockoutBracketTree.ts`.
  *
  * `final` y `tercerPuesto` se renderizan al centro junto al trofeo.
  */
