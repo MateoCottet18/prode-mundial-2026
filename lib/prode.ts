@@ -52,9 +52,17 @@ export type ScoreInput = {
   away: string;
 };
 
+export type ResultDecidedBy = "regular" | "penalties";
+
+/** Resultado real persistido (goles + metadatos opcionales de eliminatoria). */
+export type MatchResult = ScoreInput & {
+  winnerTeam?: string | null;
+  decidedBy?: ResultDecidedBy | null;
+};
+
 export type PredictionsByUser = Record<string, Record<string, ScoreInput>>;
 export type SavedPredictionsByUser = Record<string, Record<string, boolean>>;
-export type ResultsByMatch = Record<string, ScoreInput>;
+export type ResultsByMatch = Record<string, MatchResult>;
 
 export const emptyScore: ScoreInput = { home: "", away: "" };
 

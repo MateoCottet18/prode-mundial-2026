@@ -206,7 +206,7 @@ export default function AdminPage() {
             savedPredictions={{}}
             mode="admin"
             canPredict={false}
-            onSaveResult={(matchId, score) => saveResult(matchId, score)}
+            onSaveResult={(matchId, score, meta) => saveResult(matchId, score, meta)}
             onDeleteResult={(matchId) => deleteResult(matchId)}
           />
         </AdminAccordion>

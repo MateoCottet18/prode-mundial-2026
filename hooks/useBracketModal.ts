@@ -2,17 +2,24 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Match } from "@/data/matches";
+import {
+  isKnockoutMatch,
+  resolveResultMeta,
+} from "@/lib/knockoutResult";
 import type { PredictionLock } from "@/lib/matchTime";
 import {
   calculatePoints,
   emptyScore,
   parseScore,
+  type MatchResult,
   type ResultsByMatch,
   type ScoreInput,
 } from "@/lib/prode";
 import type { BracketMode } from "@/types/bracket";
 
 export type BracketModalVariant = "admin" | "prediction" | "readonly";
+
+export type SaveResultMeta = Pick<MatchResult, "winnerTeam" | "decidedBy">;
 
 function scoresEqual(a?: ScoreInput, b?: ScoreInput) {
   return (a?.home ?? "") === (b?.home ?? "") && (a?.away ?? "") === (b?.away ?? "");
@@ -26,7 +33,11 @@ type UseBracketModalOptions = {
   savedPredictions?: Record<string, boolean>;
   canPredict?: boolean;
   getPredictionLock?: (match: Match) => PredictionLock;
-  onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
+  onSaveResult?: (
+    matchId: string,
+    score: ScoreInput,
+    meta?: SaveResultMeta,
+  ) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
@@ -48,6 +59,7 @@ export function useBracketModal({
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [variant, setVariant] = useState<BracketModalVariant>("readonly");
   const [draft, setDraft] = useState<ScoreInput>(emptyScore);
+  const [penaltyWinner, setPenaltyWinner] = useState<string | null>(null);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -90,14 +102,16 @@ export function useBracketModal({
       setVariant(resolved.variant);
       setLockMessage(resolved.lockMessage);
       setDraft(initialDraftFor(match, resolved.variant));
+      setPenaltyWinner(results[match.id]?.winnerTeam ?? null);
       setSaveError(null);
     },
-    [resolveVariant, initialDraftFor],
+    [resolveVariant, initialDraftFor, results],
   );
 
   const close = useCallback(() => {
     setActiveMatch(null);
     setDraft(emptyScore);
+    setPenaltyWinner(null);
     setLockMessage(null);
     setSaveError(null);
   }, []);
@@ -116,15 +130,27 @@ export function useBracketModal({
     [variant, activeMatch, onPredictionChange],
   );
 
+  const updatePenaltyWinner = useCallback((team: string) => {
+    setPenaltyWinner(team);
+    setSaveError(null);
+  }, []);
+
   const save = useCallback(async () => {
     if (!activeMatch) return;
 
     if (variant === "admin") {
       if (!onSaveResult || !parseScore(draft)) return;
+
+      const resolvedMeta = resolveResultMeta(activeMatch, draft, penaltyWinner);
+      if (!resolvedMeta.ok) {
+        setSaveError(resolvedMeta.error);
+        return;
+      }
+
       setSaving(true);
       setSaveError(null);
       try {
-        const ok = await onSaveResult(activeMatch.id, draft);
+        const ok = await onSaveResult(activeMatch.id, draft, resolvedMeta.meta);
         if (ok !== false) close();
       } finally {
         setSaving(false);
@@ -147,7 +173,7 @@ export function useBracketModal({
         setSaving(false);
       }
     }
-  }, [activeMatch, variant, draft, onSaveResult, onSavePrediction, close]);
+  }, [activeMatch, variant, draft, penaltyWinner, onSaveResult, onSavePrediction, close]);
 
   const deleteResult = useCallback(async () => {
     if (!activeMatch || !onDeleteResult) return;
@@ -183,7 +209,18 @@ export function useBracketModal({
     ? Boolean(savedPredictions[activeMatch.id])
     : false;
   const draftValid = Boolean(parseScore(draft));
+  const parsedDraft = parseScore(draft);
   const hasOfficialResult = Boolean(parseScore(activeResult));
+  const isKnockout = activeMatch ? isKnockoutMatch(activeMatch) : false;
+  const isDraftTie = Boolean(parsedDraft && parsedDraft.home === parsedDraft.away);
+  const showPenaltyPicker = variant === "admin" && isKnockout && isDraftTie;
+  const needsSavedPenaltyAlert =
+    variant === "admin" &&
+    isKnockout &&
+    hasOfficialResult &&
+    Boolean(parsedDraft && parsedDraft.home === parsedDraft.away) &&
+    !activeResult?.winnerTeam;
+
   const isDirty =
     variant === "prediction" &&
     isPredictionSaved &&
@@ -191,7 +228,8 @@ export function useBracketModal({
   const adminDraftDiffers =
     variant === "admin" &&
     (draft.home !== (activeResult?.home ?? "") ||
-      draft.away !== (activeResult?.away ?? ""));
+      draft.away !== (activeResult?.away ?? "") ||
+      penaltyWinner !== (activeResult?.winnerTeam ?? null));
 
   const points =
     activeMatch && variant !== "admin"
@@ -202,9 +240,11 @@ export function useBracketModal({
         )
       : null;
 
+  const penaltyResolved = !showPenaltyPicker || Boolean(penaltyWinner);
+
   const canSave =
     variant === "admin"
-      ? draftValid && adminDraftDiffers && !saving
+      ? draftValid && penaltyResolved && adminDraftDiffers && !saving
       : variant === "prediction"
         ? draftValid && !saving && (isDirty || !isPredictionSaved)
         : false;
@@ -216,9 +256,13 @@ export function useBracketModal({
     activeMatch,
     variant,
     draft,
+    penaltyWinner,
+    showPenaltyPicker,
+    needsSavedPenaltyAlert,
     lockMessage,
     saveError,
     updateDraft,
+    updatePenaltyWinner,
     open,
     close,
     save,

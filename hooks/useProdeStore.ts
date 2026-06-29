@@ -8,6 +8,7 @@ import {
   type ResultsByMatch,
   type SavedPredictionsByUser,
   type ScoreInput,
+  type MatchResult,
 } from "@/lib/prode";
 import {
   deletePredictionFromSupabase,
@@ -207,13 +208,25 @@ export function useProdeStore(userId?: string, options?: UseProdeStoreOptions) {
     }));
   };
 
-  const saveResult = async (matchId: string, score: ScoreInput) => {
+  const saveResult = async (
+    matchId: string,
+    score: ScoreInput,
+    meta?: Pick<MatchResult, "winnerTeam" | "decidedBy">,
+  ) => {
     if (!parseScore(score)) return false;
 
-    setResults((current) => ({ ...current, [matchId]: score }));
+    const stored: MatchResult = {
+      ...score,
+      winnerTeam: meta?.winnerTeam ?? null,
+      decidedBy: meta?.decidedBy ?? null,
+    };
+
+    console.log("[result-save] store merge", { matchId, stored });
+
+    setResults((current) => ({ ...current, [matchId]: stored }));
 
     try {
-      await saveResultToSupabase(matchId, score);
+      await saveResultToSupabase(matchId, stored);
       await recalculatePredictionPointsViaApi();
       window.dispatchEvent(new Event("prode-store-change"));
       await refresh();

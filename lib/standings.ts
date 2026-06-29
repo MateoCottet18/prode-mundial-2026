@@ -253,22 +253,24 @@ export function getAllGeneratedMatches(
 }
 
 /**
- * Devuelve el "perdedor" de un partido eliminatorio si está cargado el resultado;
- * si no, devuelve null. Empate -> null (no hay perdedor sin penales modelados).
+ * Devuelve el perdedor de un partido eliminatorio cuando hay ganador definido.
  */
 export function getMatchLoser(match: Match, results: ResultsByMatch) {
-  const score = parseScore(results[match.id]);
-  if (!score || score.home === score.away) {
-    return null;
-  }
-  return score.home > score.away ? match.awayTeam : match.homeTeam;
+  const winner = getMatchWinner(match, results);
+  if (!winner) return null;
+  return winner === match.homeTeam ? match.awayTeam : match.homeTeam;
 }
 
 export function getMatchWinner(match: Match, results: ResultsByMatch) {
-  const score = parseScore(results[match.id]);
+  const stored = results[match.id];
+  const score = parseScore(stored);
 
   if (!score) {
     return null;
+  }
+
+  if (stored?.winnerTeam) {
+    return normalizeWinnerTeam(match, stored.winnerTeam);
   }
 
   if (score.home === score.away) {
@@ -276,6 +278,17 @@ export function getMatchWinner(match: Match, results: ResultsByMatch) {
   }
 
   return score.home > score.away ? match.homeTeam : match.awayTeam;
+}
+
+/** Alinea winner_team de DB con homeTeam/awayTeam del match (mismo string interno). */
+function normalizeWinnerTeam(match: Match, winnerTeam: string): string {
+  if (winnerTeam === match.homeTeam || winnerTeam === match.awayTeam) {
+    return winnerTeam;
+  }
+  const normalized = winnerTeam.trim().toLowerCase();
+  if (match.homeTeam.trim().toLowerCase() === normalized) return match.homeTeam;
+  if (match.awayTeam.trim().toLowerCase() === normalized) return match.awayTeam;
+  return winnerTeam;
 }
 
 /**

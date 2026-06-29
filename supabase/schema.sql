@@ -97,12 +97,23 @@ create table if not exists public.results (
   match_id text primary key,
   home_goals int not null check (home_goals >= 0),
   away_goals int not null check (away_goals >= 0),
+  winner_team text,
+  decided_by text check (decided_by is null or decided_by in ('regular', 'penalties')),
   status text not null default 'finished' check (status in ('pending', 'finished')),
   updated_by uuid references public.profiles(id) on delete set null,
   updated_at timestamptz not null default now()
 );
 
 alter table public.results drop constraint if exists results_match_id_fkey;
+
+alter table public.results
+  add column if not exists winner_team text,
+  add column if not exists decided_by text;
+
+alter table public.results drop constraint if exists results_decided_by_check;
+alter table public.results
+  add constraint results_decided_by_check
+  check (decided_by is null or decided_by in ('regular', 'penalties'));
 
 -- Tabla legacy `public.matches` (si existe de una iteración anterior):
 -- ya no se usa, pero la dejamos por compatibilidad histórica.

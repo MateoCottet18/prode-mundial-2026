@@ -11,6 +11,7 @@ import { useBracketModal } from "@/hooks/useBracketModal";
 import type { ResultsByMatch, ScoreInput } from "@/lib/prode";
 import type { BracketLayout, BracketMode } from "@/types/bracket";
 import type { PredictionLock } from "@/lib/matchTime";
+import type { SaveResultMeta } from "@/hooks/useBracketModal";
 
 type Props = {
   bracket: BracketLayout;
@@ -21,7 +22,11 @@ type Props = {
   mode: BracketMode;
   canPredict?: boolean;
   getPredictionLock?: (match: Match) => PredictionLock;
-  onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
+  onSaveResult?: (
+    matchId: string,
+    score: ScoreInput,
+    meta?: SaveResultMeta,
+  ) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;
   onSavePrediction?: (matchId: string) => Promise<boolean> | boolean | void;
@@ -147,6 +152,10 @@ export function KnockoutBracket({
         lockMessage={bracketModal.lockMessage}
         saveError={bracketModal.saveError}
         points={bracketModal.points}
+        showPenaltyPicker={bracketModal.showPenaltyPicker}
+        needsSavedPenaltyAlert={bracketModal.needsSavedPenaltyAlert}
+        penaltyWinner={bracketModal.penaltyWinner}
+        onPenaltyWinnerChange={bracketModal.updatePenaltyWinner}
         canRevealPredictions={bracketModal.canRevealPredictions}
         adminPreviewPredictions={mode === "admin"}
         onClose={bracketModal.close}
@@ -171,7 +180,11 @@ type BracketTreeInnerProps = {
   mode: BracketMode;
   canPredict: boolean;
   getPredictionLock?: (match: Match) => PredictionLock;
-  onSaveResult?: (matchId: string, score: ScoreInput) => Promise<boolean> | void;
+  onSaveResult?: (
+    matchId: string,
+    score: ScoreInput,
+    meta?: SaveResultMeta,
+  ) => Promise<boolean> | void;
   onDeleteResult?: (matchId: string) => Promise<void> | void;
   onMatchOpen: (match: Match) => void;
   onPredictionChange?: (matchId: string, side: keyof ScoreInput, value: string) => void;

@@ -14,11 +14,12 @@ import {
   KNOCKOUT_ROUND_TABS,
   type KnockoutRoundTab,
 } from "@/lib/bracket/bracketNavigation";
+import { getPenaltyAdvanceLabel, needsPenaltyWinnerDefinition } from "@/lib/knockoutResult";
 import {
   formatMobileKickoffArgentina,
   type PredictionLock,
 } from "@/lib/matchTime";
-import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
+import { calculatePoints, parseScore, type MatchResult, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
 import type { BracketLayout, BracketMode } from "@/types/bracket";
 
@@ -155,6 +156,9 @@ function MobileBracketMatchCard({
   const feedLabels = getFeedLabels(match.id);
   const advanceHint = getAdvanceHint(match.id);
   const kickoffLabel = formatMobileKickoffArgentina(match);
+  const storedResult = result as MatchResult | undefined;
+  const penaltyLabel = getPenaltyAdvanceLabel(match, storedResult);
+  const missingPenaltyWinner = needsPenaltyWinnerDefinition(match, storedResult);
 
   const ctaLabel = isAdmin
     ? hasResult
@@ -199,6 +203,11 @@ function MobileBracketMatchCard({
               Pendiente
             </span>
           )}
+          {missingPenaltyWinner ? (
+            <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[0.58rem] uppercase tracking-[0.12em] text-amber-100">
+              Falta penales
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -242,6 +251,10 @@ function MobileBracketMatchCard({
       <p className="fc-display-italic mt-3 text-[0.65rem] uppercase tracking-[0.14em] text-slate-400">
         {kickoffLabel}
       </p>
+
+      {penaltyLabel ? (
+        <p className="mt-1 text-[0.62rem] text-[var(--fc-lime)]">{penaltyLabel}</p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <span

@@ -4,8 +4,12 @@ import { useState, type KeyboardEvent } from "react";
 import { CountryWithFlag } from "@/components/CountryWithFlag";
 import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import type { Match } from "@/data/matches";
-import { calculatePoints, parseScore, type ScoreInput } from "@/lib/prode";
+import { calculatePoints, parseScore, type MatchResult, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
+import {
+  getPenaltyAdvanceLabel,
+  needsPenaltyWinnerDefinition,
+} from "@/lib/knockoutResult";
 import type { BracketMode } from "@/types/bracket";
 import { getPredictionCloseLabel, type PredictionLock } from "@/lib/matchTime";
 import { bracketStageShortLabel } from "@/components/bracket/bracketLabels";
@@ -82,6 +86,10 @@ export function BracketMatch({
     !isAdmin && canPredict && !isLocked && !useMatchModal;
 
   const winner = getMatchWinner(match, allResults);
+  const storedResult = result as MatchResult | undefined;
+  const penaltyLabel = getPenaltyAdvanceLabel(match, storedResult);
+  const missingPenaltyWinner =
+    isAdmin && needsPenaltyWinnerDefinition(match, storedResult);
   // Para puntos / view-mode usamos siempre el valor de DB; el input local es
   // sólo para edición.
   const persistedPrediction = dbPrediction ?? (isPredictionSaved ? prediction : undefined);
@@ -221,6 +229,14 @@ export function BracketMatch({
               Pendiente
             </span>
           )}
+          {missingPenaltyWinner ? (
+            <span
+              title="Falta definir quién avanzó por penales"
+              className="rounded-full border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-amber-100"
+            >
+              Penales
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -267,7 +283,9 @@ export function BracketMatch({
                 : "group-hover:text-slate-300"
           }`}
         >
-          {modalHint}
+          {missingPenaltyWinner
+            ? "Definir ganador por penales"
+            : modalHint}
         </p>
       ) : isAdmin ? (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 text-[0.65rem]">
@@ -316,6 +334,12 @@ export function BracketMatch({
           }
         />
       )}
+
+      {penaltyLabel ? (
+        <p className="fc-display mt-2 text-center text-[0.55rem] uppercase tracking-[0.12em] text-[var(--fc-lime)]/85">
+          {penaltyLabel}
+        </p>
+      ) : null}
 
       {/* Revelación de predicciones */}
       {isAdmin ? (

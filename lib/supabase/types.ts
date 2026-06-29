@@ -25,6 +25,8 @@ export type ResultRow = {
   match_id: string;
   home_goals: number;
   away_goals: number;
+  winner_team?: string | null;
+  decided_by?: "regular" | "penalties" | null;
   status: "pending" | "finished";
   updated_at?: string;
 };

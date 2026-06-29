@@ -6,8 +6,12 @@ import { MatchPredictionsReveal } from "@/components/MatchPredictionsReveal";
 import { bracketStageLabel } from "@/components/bracket/bracketLabels";
 import type { BracketModalVariant } from "@/hooks/useBracketModal";
 import type { Match } from "@/data/matches";
-import { parseScore, type ScoreInput } from "@/lib/prode";
+import { parseScore, type MatchResult, type ScoreInput } from "@/lib/prode";
 import { getMatchWinner } from "@/lib/standings";
+import {
+  getPenaltyAdvanceLabel,
+  needsPenaltyWinnerDefinition,
+} from "@/lib/knockoutResult";
 import {
   formatDateTimeArgentina,
   getKickoffDateLabelArgentina,
@@ -26,6 +30,10 @@ type Props = {
   saving: boolean;
   canSave: boolean;
   hasOfficialResult: boolean;
+  showPenaltyPicker?: boolean;
+  needsSavedPenaltyAlert?: boolean;
+  penaltyWinner?: string | null;
+  onPenaltyWinnerChange?: (team: string) => void;
   isPredictionSaved?: boolean;
   isDirty?: boolean;
   lockMessage?: string | null;
@@ -51,6 +59,10 @@ export function BracketMatchModal({
   saving,
   canSave,
   hasOfficialResult,
+  showPenaltyPicker = false,
+  needsSavedPenaltyAlert = false,
+  penaltyWinner = null,
+  onPenaltyWinnerChange,
   isPredictionSaved = false,
   isDirty = false,
   lockMessage,
@@ -82,6 +94,9 @@ export function BracketMatchModal({
   const homeIsWinner = winner === match.homeTeam;
   const awayIsWinner = winner === match.awayTeam;
   const parsedResult = parseScore(result);
+  const storedResult = result as MatchResult | undefined;
+  const penaltyLabel = getPenaltyAdvanceLabel(match, storedResult);
+  const missingPenaltyWinner = needsPenaltyWinnerDefinition(match, storedResult);
   const displayPrediction = readOnly
     ? parseScore(draft)
       ? draft
@@ -231,6 +246,59 @@ export function BracketMatchModal({
                 {parsedResult.home}–{parsedResult.away}
               </span>
             </p>
+          ) : null}
+
+          {penaltyLabel ? (
+            <p className="mt-2 text-center text-sm text-[var(--fc-lime)]">
+              {penaltyLabel}
+            </p>
+          ) : null}
+
+          {missingPenaltyWinner && variant !== "admin" ? (
+            <p className="mt-2 text-center text-sm text-amber-200">
+              Falta definir quién avanzó por penales.
+            </p>
+          ) : null}
+
+          {needsSavedPenaltyAlert ? (
+            <p
+              className="mt-4 rounded-xl border border-amber-300/35 bg-amber-300/[0.08] px-3 py-2.5 text-sm text-amber-100"
+              role="alert"
+            >
+              Falta definir quién avanzó por penales.
+            </p>
+          ) : null}
+
+          {showPenaltyPicker ? (
+            <div className="mt-4 space-y-2">
+              <p className="fc-display text-center text-[0.65rem] uppercase tracking-[0.14em] text-slate-400">
+                Empate — definí ganador por penales
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => onPenaltyWinnerChange?.(match.homeTeam)}
+                  className={`fc-display rounded-xl border px-3 py-3 text-[0.68rem] uppercase tracking-[0.12em] transition ${
+                    penaltyWinner === match.homeTeam
+                      ? "border-emerald-300/50 bg-emerald-300/15 text-emerald-100"
+                      : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-emerald-300/30"
+                  }`}
+                >
+                  Pasó {match.homeTeam} por penales
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPenaltyWinnerChange?.(match.awayTeam)}
+                  className={`fc-display rounded-xl border px-3 py-3 text-[0.68rem] uppercase tracking-[0.12em] transition ${
+                    penaltyWinner === match.awayTeam
+                      ? "border-emerald-300/50 bg-emerald-300/15 text-emerald-100"
+                      : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-emerald-300/30"
+                  }`}
+                >
+                  Pasó {match.awayTeam} por penales
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {hasOfficialResult && points !== null ? (
